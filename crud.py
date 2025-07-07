@@ -3,8 +3,8 @@ Database CRUD operations for HMO Analyser
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_
-from models import Property, PropertyAnalysis, AnalysisTask, AnalyticsLog
+from sqlalchemy import desc, and_, or_, func
+from models import Property, PropertyAnalysis, AnalysisTask, AnalyticsLog, PropertyChange
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timedelta
@@ -296,3 +296,135 @@ class AnalyticsCRUD:
             "event_breakdown": event_counts,
             "daily_average": round(len(events) / days, 2)
         }
+    
+# Add this new CRUD class to your crud.py file
+class PropertyChangeCRUD:
+    @staticmethod
+    def create_change(
+        db: Session, 
+        property_id, 
+        change_type: str,
+        field_name: str,
+        old_value: str,
+        new_value: str,
+        change_summary: str,
+        analysis_id=None,
+        room_details: dict = None
+    ) -> PropertyChange:
+        """Create a new property change record"""
+        # Handle both UUID and string formats
+        if isinstance(property_id, uuid.UUID):
+            property_id = str(property_id)
+        if isinstance(analysis_id, uuid.UUID):
+            analysis_id = str(analysis_id)
+            
+        change = PropertyChange(
+            property_id=property_id,
+            change_type=change_type,
+            field_name=field_name,
+            old_value=old_value,
+            new_value=new_value,
+            change_summary=change_summary,
+            analysis_id=analysis_id,
+            room_details=room_details
+        )
+        db.add(change)
+        db.commit()
+        db.refresh(change)
+        return change
+    
+    @staticmethod
+    def get_property_changes(
+        db: Session, 
+        property_id, 
+        limit: int = 50
+    ) -> List[PropertyChange]:
+        """Get all changes for a specific property"""
+        # Handle both UUID and string formats
+        if isinstance(property_id, uuid.UUID):
+            property_id = str(property_id)
+            
+        return (db.query(PropertyChange)
+                .filter(PropertyChange.property_id == property_id)
+                .order_by(desc(PropertyChange.detected_at))
+                .limit(limit)
+                .all())
+    
+    @staticmethod
+    def get_recent_changes(
+        db: Session, 
+        since_date: datetime, 
+        limit: int = 100,
+        change_type: str = None
+    ) -> List[PropertyChange]:
+        """Get recent changes across all properties"""
+        query = (db.query(PropertyChange)
+                .join(Property)
+                .filter(PropertyChange.detected_at >= since_date))
+        
+        if change_type:
+            query = query.filter(PropertyChange.change_type == change_type)
+        
+        return (query.order_by(desc(PropertyChange.detected_at))
+                .limit(limit)
+                .all())
+    
+    @staticmethod
+    def get_changes_by_type(
+        db: Session, 
+        change_type: str, 
+        days: int = 30,
+        limit: int = 100
+    ) -> List[PropertyChange]:
+        """Get changes of a specific type"""
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        return (db.query(PropertyChange)
+                .filter(
+                    PropertyChange.change_type == change_type,
+                    PropertyChange.detected_at >= cutoff_date
+                )
+                .order_by(desc(PropertyChange.detected_at))
+                .limit(limit)
+                .all())
+    
+    @staticmethod
+    def get_change_stats(db: Session, days: int = 30) -> Dict[str, Any]:
+        """Get statistics about changes"""
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Total changes
+        total_changes = (db.query(PropertyChange)
+                        .filter(PropertyChange.detected_at >= cutoff_date)
+                        .count())
+        
+        # Changes by type
+        change_types = (db.query(PropertyChange.change_type, func.count(PropertyChange.id))
+                       .filter(PropertyChange.detected_at >= cutoff_date)
+                       .group_by(PropertyChange.change_type)
+                       .all())
+        
+        # Properties with changes
+        properties_with_changes = (db.query(PropertyChange.property_id)
+                                  .filter(PropertyChange.detected_at >= cutoff_date)
+                                  .distinct()
+                                  .count())
+        
+        return {
+            "total_changes": total_changes,
+            "change_types": dict(change_types),
+            "properties_affected": properties_with_changes,
+            "period_days": days
+        }
+    
+    @staticmethod
+    def delete_old_changes(db: Session, days_old: int = 90) -> int:
+        """Delete change records older than specified days"""
+        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+        
+        deleted_count = (db.query(PropertyChange)
+                        .filter(PropertyChange.detected_at < cutoff_date)
+                        .delete())
+        
+        db.commit()
+        return deleted_count

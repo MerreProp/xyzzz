@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend for HMO Analyser with Database Integration and Organized Excel Storage
+FastAPI Backend for HMO Analyser - Working Version with All Endpoints
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, status, Depends, Request
@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 
 # Import database components
 from database import get_db, init_db, test_connection
-from models import Property, PropertyAnalysis, AnalysisTask
-from crud import PropertyCRUD, AnalysisCRUD, TaskCRUD, AnalyticsCRUD
+from models import Property, PropertyAnalysis, AnalysisTask, PropertyChange
+from crud import PropertyCRUD, AnalysisCRUD, TaskCRUD, AnalyticsCRUD, PropertyChangeCRUD
 
 # Import your existing modules
 from modules import (
@@ -44,7 +44,7 @@ app = FastAPI(
 # Add CORS middleware for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # React dev servers
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,38 +80,10 @@ class PropertyAnalysisResponse(BaseModel):
 
 class AnalysisStatus(BaseModel):
     task_id: str
-    status: str  # "pending", "running", "completed", "failed"
-    progress: Dict[str, str]  # {"coordinates": "completed", "scraping": "running", etc.}
+    status: str
+    progress: Dict[str, str]
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-
-class PropertySummary(BaseModel):
-    property_id: str
-    url: str
-    address: Optional[str]
-    monthly_income: Optional[float]
-    annual_income: Optional[float]
-    total_rooms: Optional[int]
-    available_rooms: Optional[int]
-    bills_included: Optional[str]
-    meets_requirements: Optional[str]
-    analysis_date: str
-    latitude: Optional[float]
-    longitude: Optional[float]
-
-class AnalyticsResponse(BaseModel):
-    total_properties: int
-    total_analyses: int
-    viable_properties: int
-    average_monthly_income: float
-    total_monthly_income: float
-
-class ExportStatsResponse(BaseModel):
-    total_files: int
-    total_size_mb: float
-    exports_directory: str
-    oldest_file: Optional[str]
-    newest_file: Optional[str]
 
 def initialize_analysis_data(url: str) -> Dict[str, Any]:
     """Initialize the analysis data structure"""
@@ -184,13 +156,13 @@ def format_property_summary(property_obj: Property) -> Dict[str, Any]:
         "analysis_date": latest_analysis.analysis_date if latest_analysis else None,
         "latitude": property_obj.latitude,
         "longitude": property_obj.longitude,
-        # New fields for updated history page
         "advertiser_name": latest_analysis.advertiser_name if latest_analysis else None,
         "landlord_type": latest_analysis.landlord_type if latest_analysis else None,
         "listing_status": latest_analysis.listing_status if latest_analysis else None,
-        "date_gone": None  # To be implemented later when properties are marked as gone
+        "date_gone": None
     }
 
+# WORKING background task (your original version)
 async def analyze_property_task(task_id: str, url: str, db: Session):
     """Background task to analyze a property with database storage"""
     try:
@@ -247,7 +219,6 @@ async def analyze_property_task(task_id: str, url: str, db: Session):
             
             # Update property with additional details if available
             if analysis_data.get('Property ID'):
-                # Update the property_id field (SpareRoom property ID, not the database primary key)
                 property_obj.property_id = analysis_data.get('Property ID')
                 db.commit()
                 db.refresh(property_obj)
@@ -362,7 +333,7 @@ async def analyze_property(
     # Create task record
     TaskCRUD.create_task(db, task_id, property_obj.id)
     
-    # Start background analysis task
+    # Start background analysis task with database session
     background_tasks.add_task(analyze_property_task, task_id, str(request.url), db)
     
     return PropertyAnalysisResponse(
@@ -462,7 +433,6 @@ async def search_properties(
 async def get_property_details(property_id: str, db: Session = Depends(get_db)):
     """Get detailed information about a specific property"""
     
-    # Handle both UUID string formats and direct IDs
     property_obj = PropertyCRUD.get_property_by_id(db, property_id)
     
     if not property_obj:
@@ -508,18 +478,18 @@ async def get_property_details(property_id: str, db: Session = Depends(get_db)):
         'Meets Requirements': latest_analysis.meets_requirements
     }
 
-@app.get("/api/analytics", response_model=AnalyticsResponse)
+@app.get("/api/analytics")
 async def get_analytics(db: Session = Depends(get_db)):
     """Get analytics and statistics"""
     stats = AnalysisCRUD.get_analysis_stats(db)
     
-    return AnalyticsResponse(
-        total_properties=stats["total_properties"],
-        total_analyses=stats["total_analyses"],
-        viable_properties=stats["viable_properties"],
-        average_monthly_income=stats["average_monthly_income"],
-        total_monthly_income=stats["total_monthly_income"]
-    )
+    return {
+        "total_properties": stats["total_properties"],
+        "total_analyses": stats["total_analyses"],
+        "viable_properties": stats["viable_properties"],
+        "average_monthly_income": stats["average_monthly_income"],
+        "total_monthly_income": stats["total_monthly_income"]
+    }
 
 @app.get("/api/export/{property_id}")
 async def export_property_excel(property_id: str, db: Session = Depends(get_db)):
@@ -648,66 +618,322 @@ async def health_check(db: Session = Depends(get_db)):
         "export_size_mb": export_stats["total_size_mb"]
     }
 
-# Admin endpoints for file management
-@app.get("/api/admin/export-stats", response_model=ExportStatsResponse)
-async def get_export_statistics():
-    """Get statistics about exported Excel files"""
-    stats = get_export_stats()
-    
-    return ExportStatsResponse(
-        total_files=stats["total_files"],
-        total_size_mb=stats["total_size_mb"],
-        exports_directory=stats["exports_directory"],
-        oldest_file=stats.get("oldest_file"),
-        newest_file=stats.get("newest_file")
-    )
+# Add these new functions to your main.py
 
-@app.post("/api/admin/cleanup-exports")
-async def cleanup_old_export_files(days_old: int = 30):
-    """Clean up Excel files older than specified days"""
+import asyncio
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
+
+class PropertyUpdateRequest(BaseModel):
+    property_ids: Optional[List[str]] = None  # If None, update all properties
+
+class PropertyUpdateResponse(BaseModel):
+    task_id: str
+    status: str
+    message: str
+    properties_queued: int
+
+class PropertyChangeResponse(BaseModel):
+    change_id: str
+    change_type: str
+    field_name: str
+    old_value: str
+    new_value: str
+    change_summary: str
+    detected_at: str
+
+def detect_changes(old_analysis: Dict[str, Any], new_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Compare two analyses and detect changes"""
+    changes = []
     
-    if days_old < 1:
+    # Fields to monitor for changes
+    monitored_fields = {
+        'Listing Status': 'status',
+        'Available Rooms': 'availability',
+        'Total Rooms': 'rooms',
+        'Monthly Income': 'price',
+        'Annual Income': 'price',
+        'Bills Included': 'bills',
+        'Meets Requirements': 'requirements'
+    }
+    
+    for field, change_type in monitored_fields.items():
+        old_val = old_analysis.get(field)
+        new_val = new_analysis.get(field)
+        
+        if old_val != new_val:
+            # Create change record
+            change = {
+                'change_type': change_type,
+                'field_name': field,
+                'old_value': str(old_val) if old_val is not None else 'None',
+                'new_value': str(new_val) if new_val is not None else 'None',
+                'change_summary': f"{field} changed from '{old_val}' to '{new_val}'"
+            }
+            changes.append(change)
+    
+    # Special handling for room details
+    old_rooms = old_analysis.get('All Rooms List', [])
+    new_rooms = new_analysis.get('All Rooms List', [])
+    
+    if old_rooms != new_rooms:
+        room_changes = analyze_room_changes(old_rooms, new_rooms)
+        if room_changes:
+            changes.append({
+                'change_type': 'rooms',
+                'field_name': 'Room Configuration',
+                'old_value': '; '.join(old_rooms) if old_rooms else 'None',
+                'new_value': '; '.join(new_rooms) if new_rooms else 'None',
+                'change_summary': room_changes,
+                'room_details': {
+                    'old_rooms': old_rooms,
+                    'new_rooms': new_rooms,
+                    'analysis': room_changes
+                }
+            })
+    
+    return changes
+
+def analyze_room_changes(old_rooms: List[str], new_rooms: List[str]) -> str:
+    """Analyze specific room changes"""
+    changes = []
+    
+    # Convert room lists to sets for comparison
+    old_set = set(old_rooms)
+    new_set = set(new_rooms)
+    
+    # Rooms that were removed
+    removed_rooms = old_set - new_set
+    if removed_rooms:
+        changes.append(f"Removed: {', '.join(removed_rooms)}")
+    
+    # Rooms that were added
+    added_rooms = new_set - old_set
+    if added_rooms:
+        changes.append(f"Added: {', '.join(added_rooms)}")
+    
+    # Analyze availability changes (basic pattern matching)
+    old_available = [room for room in old_rooms if 'available' in room.lower() or '(' in room]
+    new_available = [room for room in new_rooms if 'available' in room.lower() or '(' in room]
+    
+    if len(old_available) != len(new_available):
+        changes.append(f"Available rooms changed from {len(old_available)} to {len(new_available)}")
+    
+    return '; '.join(changes) if changes else 'Room configuration modified'
+
+async def update_property_task(task_id: str, property_ids: List[str], db: Session):
+    """Background task to update multiple properties"""
+    try:
+        updated_count = 0
+        changes_detected = 0
+        
+        TaskCRUD.update_task_status(db, task_id, "running", {"progress": "starting"})
+        
+        for i, property_id in enumerate(property_ids):
+            try:
+                # Get existing property and latest analysis
+                property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+                if not property_obj:
+                    continue
+                
+                latest_analysis = AnalysisCRUD.get_latest_analysis(db, property_obj.id)
+                if not latest_analysis:
+                    continue
+                
+                # Update progress
+                progress = f"Updating property {i+1}/{len(property_ids)}"
+                TaskCRUD.update_task_status(db, task_id, "running", {"progress": progress})
+                
+                # Re-analyze the property
+                analysis_data = initialize_analysis_data(property_obj.url)
+                
+                # Extract new data
+                coords = extract_coordinates(property_obj.url, analysis_data)
+                if coords.get('found'):
+                    lat, lon = coords['latitude'], coords['longitude']
+                    reverse_geocode_nominatim(lat, lon, analysis_data)
+                    extract_property_details(property_obj.url, analysis_data)
+                
+                extract_price_section(property_obj.url, analysis_data)
+                
+                # Compare with previous analysis
+                old_analysis_data = {
+                    'Listing Status': latest_analysis.listing_status,
+                    'Available Rooms': latest_analysis.available_rooms,
+                    'Total Rooms': latest_analysis.total_rooms,
+                    'Monthly Income': float(latest_analysis.monthly_income) if latest_analysis.monthly_income else None,
+                    'Annual Income': float(latest_analysis.annual_income) if latest_analysis.annual_income else None,
+                    'Bills Included': latest_analysis.bills_included,
+                    'Meets Requirements': latest_analysis.meets_requirements,
+                    'All Rooms List': latest_analysis.all_rooms_list or []
+                }
+                
+                # Detect changes
+                changes = detect_changes(old_analysis_data, analysis_data)
+                
+                if changes:
+                    # Create new analysis record
+                    new_analysis = save_analysis_to_db(db, property_obj, analysis_data)
+                    
+                    # Save change records
+                    for change in changes:
+                        PropertyChangeCRUD.create_change(
+                            db,
+                            property_id=property_obj.id,
+                            analysis_id=new_analysis.id,
+                            **change
+                        )
+                    
+                    changes_detected += len(changes)
+                    print(f"[{task_id}] Detected {len(changes)} changes for property {property_obj.id}")
+                else:
+                    print(f"[{task_id}] No changes detected for property {property_obj.id}")
+                
+                updated_count += 1
+                
+            except Exception as e:
+                print(f"[{task_id}] Failed to update property {property_id}: {e}")
+                continue
+        
+        # Complete the task
+        TaskCRUD.update_task_status(db, task_id, "completed", {
+            "progress": "completed",
+            "updated_count": updated_count,
+            "changes_detected": changes_detected
+        })
+        
+        # Log completion
+        AnalyticsCRUD.log_event(
+            db,
+            "bulk_update_completed",
+            task_id=task_id,
+            event_data={
+                "properties_updated": updated_count,
+                "changes_detected": changes_detected
+            }
+        )
+        
+        print(f"[{task_id}] Update completed: {updated_count} properties, {changes_detected} changes")
+        
+    except Exception as e:
+        print(f"[{task_id}] Update task failed: {e}")
+        TaskCRUD.update_task_status(db, task_id, "failed", error_message=str(e))
+
+@app.post("/api/properties/update", response_model=PropertyUpdateResponse)
+async def update_properties(
+    request: PropertyUpdateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Start bulk update of properties"""
+    
+    # Get property IDs to update
+    if request.property_ids:
+        property_ids = request.property_ids
+    else:
+        # Get all properties
+        all_properties = PropertyCRUD.get_all_properties(db, limit=1000)
+        property_ids = [str(prop.id) for prop in all_properties]
+    
+    if not property_ids:
         raise HTTPException(
             status_code=400,
-            detail="days_old must be at least 1"
+            detail="No properties found to update"
         )
     
-    deleted_count = cleanup_old_exports(days_old)
+    # Generate task ID
+    task_id = str(uuid.uuid4())
     
-    return {
-        "message": f"Cleanup completed successfully",
-        "deleted_files": deleted_count,
-        "cutoff_days": days_old
-    }
+    # Create task record
+    TaskCRUD.create_task(db, task_id, None)  # No specific property for bulk updates
+    
+    # Start background update task
+    background_tasks.add_task(update_property_task, task_id, property_ids, db)
+    
+    return PropertyUpdateResponse(
+        task_id=task_id,
+        status="pending",
+        message=f"Update started for {len(property_ids)} properties",
+        properties_queued=len(property_ids)
+    )
 
-@app.get("/api/admin/exports")
-async def list_export_files():
-    """List all export files with details"""
-    import glob
+@app.post("/api/properties/{property_id}/update")
+async def update_single_property(
+    property_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Update a single property"""
     
-    exports_dir = get_exports_directory()
-    excel_files = glob.glob(os.path.join(exports_dir, "*.xlsx"))
+    property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
     
-    file_list = []
-    for file_path in excel_files:
-        file_stat = os.stat(file_path)
-        file_info = {
-            "filename": os.path.basename(file_path),
-            "size_bytes": file_stat.st_size,
-            "size_mb": round(file_stat.st_size / (1024 * 1024), 2),
-            "created": datetime.fromtimestamp(file_stat.st_ctime).isoformat(),
-            "modified": datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+    # Use the bulk update function for single property
+    task_id = str(uuid.uuid4())
+    TaskCRUD.create_task(db, task_id, property_obj.id)
+    
+    background_tasks.add_task(update_property_task, task_id, [property_id], db)
+    
+    return PropertyUpdateResponse(
+        task_id=task_id,
+        status="pending",
+        message="Property update started",
+        properties_queued=1
+    )
+
+@app.get("/api/properties/{property_id}/changes")
+async def get_property_changes(
+    property_id: str,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Get change history for a property"""
+    
+    property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
+    
+    changes = PropertyChangeCRUD.get_property_changes(db, property_id, limit=limit)
+    
+    return [
+        PropertyChangeResponse(
+            change_id=str(change.id),
+            change_type=change.change_type,
+            field_name=change.field_name,
+            old_value=change.old_value,
+            new_value=change.new_value,
+            change_summary=change.change_summary,
+            detected_at=change.detected_at.isoformat()
+        )
+        for change in changes
+    ]
+
+@app.get("/api/changes/recent")
+async def get_recent_changes(
+    days: int = 7,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Get recent changes across all properties"""
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    changes = PropertyChangeCRUD.get_recent_changes(db, cutoff_date, limit=limit)
+    
+    return [
+        {
+            "change_id": str(change.id),
+            "property_id": str(change.property_id),
+            "property_address": change.property.address if change.property else "Unknown",
+            "change_type": change.change_type,
+            "field_name": change.field_name,
+            "old_value": change.old_value,
+            "new_value": change.new_value,
+            "change_summary": change.change_summary,
+            "detected_at": change.detected_at.isoformat()
         }
-        file_list.append(file_info)
-    
-    # Sort by creation date (newest first)
-    file_list.sort(key=lambda x: x["created"], reverse=True)
-    
-    return {
-        "total_files": len(file_list),
-        "exports_directory": exports_dir,
-        "files": file_list
-    }
+        for change in changes
+    ]
 
 if __name__ == "__main__":
     import uvicorn

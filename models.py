@@ -53,6 +53,8 @@ class Property(Base):
     
     # Relationships - one property can have multiple analyses and tasks
     analyses = relationship("PropertyAnalysis", back_populates="property", cascade="all, delete-orphan")
+    # Add this line with your existing relationships:
+    changes = relationship("PropertyChange", back_populates="property", cascade="all, delete-orphan", order_by="desc(PropertyChange.detected_at)")
     tasks = relationship("AnalysisTask", back_populates="property", cascade="all, delete-orphan")
 
 class PropertyAnalysis(Base):
@@ -104,7 +106,7 @@ class AnalysisTask(Base):
     # Primary key and foreign key to property
     id = get_uuid_column()
     task_id = Column(String(100), unique=True, nullable=False, index=True)
-    property_id = get_uuid_foreign_key("properties")
+    property_id = get_uuid_foreign_key("properties", nullable=True)  # Allow NULL for bulk updates
     
     # Task status and progress
     status = Column(String(50), default="pending", index=True)  # pending, running, completed, failed
@@ -135,3 +137,28 @@ class AnalyticsLog(Base):
     
     # Timestamp
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+class PropertyChange(Base):
+    """Tracks changes to properties over time"""
+    __tablename__ = "property_changes"
+    
+    # Primary key and foreign key to property
+    id = get_uuid_column()
+    property_id = get_uuid_foreign_key("properties", nullable=False)
+    
+    # Change tracking
+    change_type = Column(String(50), nullable=False, index=True)  # 'status', 'price', 'availability', 'rooms', 'offline'
+    field_name = Column(String(100))  # Specific field that changed
+    old_value = Column(Text)  # Previous value
+    new_value = Column(Text)  # New value
+    
+    # Additional context
+    room_details = Column(JSON)  # For room-specific changes
+    change_summary = Column(Text)  # Human-readable description
+    
+    # Detection metadata
+    detected_at = Column(DateTime, default=datetime.utcnow, index=True)
+    analysis_id = get_uuid_foreign_key("property_analyses", nullable=True)  # Link to analysis that detected the change
+    
+    # Relationship back to property
+    property = relationship("Property", back_populates="changes")

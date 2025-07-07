@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+    <meta charset="utf-8">
+    <title>Redirect</title>
+    <meta name="description" content="Redirect">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <noscript>
+	    <meta http-equiv="Refresh" content="5; url=https://www.spareroom.co.uk/flatshare/search_copy_n_edit.pl?changeable_params=showme_rooms%2Cshowme_1beds%2Cshowme_buddyup_properties&flatshare_type=offered&location_type=area&posted_by=live_out&replace_all_adv_params=1&resume_last_search=1&search_id=1371180213&share_type=P&show_results=as+a+map&showme_1beds=Y&showme_rooms=Y&where=Swindon">
+    </noscript>
+	<style>
+		body, html {
+			background:#e1e1e1;
+			text-align:center
+		}
+		#box {
+			text-align:left;
+			font:13px/1.4 "Lucida Grande", "Lucida Sans Unistatus", sans-serif;
+			margin:10% auto 10% auto;
+			width:640px;
+			color:#333;
+			background:#fff;
+			padding:20px 30px 30px 30px;
+			-moz-border-radius:10px;
+			-webkit-border-radius:10px;
+			border-radius:10px;
+			-moz-box-shadow:0 2px 2px rgba(0,0,0, 0.2);
+			-webkit-box-shadow:0 2px 2px rgba(0,0,0, 0.2);
+			box-shadow:0 2px 2px rgba(0,0,0, 0.2);
+		}
+		p.redirect {
+		    font-size: 11px;
+		    color: #aaaaaa;
+		}
+		a:link, a:visited, a:hover, a:hover {
+		    font-size: 11px;
+		    color: #888888;
+		    text-decoration: none;
+		}
+		.hidden {display: none}
+	</style>
+</head>
+<body>
+    <div id="box">
+        <p>Sorry, the ad is not currently live</p>
+        <p class="redirect">
+            If you are not redirected, please <a href="https://www.spareroom.co.uk/flatshare/search_copy_n_edit.pl?changeable_params=showme_rooms%2Cshowme_1beds%2Cshowme_buddyup_properties&flatshare_type=offered&location_type=area&posted_by=live_out&replace_all_adv_params=1&resume_last_search=1&search_id=1371180213&share_type=P&show_results=as+a+map&showme_1beds=Y&showme_rooms=Y&where=Swindon">click here&hellip;</a>
+        </p>
+    </div>
+    <script type="text/javascript">
+        document.getElementById("box").className = "hidden";
+        alert("Sorry, the ad is not currently live");
+        window.location.replace("https://www.spareroom.co.uk/flatshare/search_copy_n_edit.pl?changeable_params=showme_rooms%2Cshowme_1beds%2Cshowme_buddyup_properties&flatshare_type=offered&location_type=area&posted_by=live_out&replace_all_adv_params=1&resume_last_search=1&search_id=1371180213&share_type=P&show_results=as+a+map&showme_1beds=Y&showme_rooms=Y&where=Swindon");
+    </script>
+</body>
+</html>
