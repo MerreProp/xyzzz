@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./hmo-analyser-frontend/src/components"
+    ]
+}

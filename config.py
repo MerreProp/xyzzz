@@ -36,3 +36,7 @@ EXCEL_FILE_PREFIX = "hmo_analysis_"
 if not os.path.exists(EXPORTS_DIR):
     os.makedirs(EXPORTS_DIR)
     print(f"✅ Created {EXPORTS_DIR} directory")
+
+# Postcodes.io API settings
+POSTCODES_IO_BASE_URL = "https://api.postcodes.io"
+POSTCODES_IO_USER_AGENT = "HMO Analyser/1.0"

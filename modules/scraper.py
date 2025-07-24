@@ -1,11 +1,15 @@
 # modules/scraper.py
 """
-Web scraping and HTML parsing functions for HMO Analyser
+Web scraping and HTML parsing functions for HMO Analyser - FIXED VERSION
 """
 
+from datetime import datetime
+import uuid
 import requests
 from bs4 import BeautifulSoup
 from config import DEFAULT_HEADERS, REQUEST_TIMEOUT
+from crud import RoomAvailabilityPeriodCRUD, RoomCRUD
+from models import Room
 from modules.calculator import remove_pcm_from_price, calculate_rental_income
 
 
@@ -62,6 +66,58 @@ def picture_detector(soup):
     
     return None, None, None
 
+@staticmethod
+def mark_all_property_rooms_as_taken(db: requests.Session, property_id, analysis_id=None):
+    """Mark all rooms for a property as taken (for expired listings)"""
+    # Handle UUID format
+    if isinstance(property_id, uuid.UUID):
+        property_id = str(property_id)
+    if isinstance(analysis_id, uuid.UUID):
+        analysis_id = str(analysis_id)
+    
+    current_time = datetime.utcnow()
+    
+    # Get all rooms for this property
+    rooms = (db.query(Room)
+            .filter(Room.property_id == property_id)
+            .all())
+    
+    updated_rooms = []
+    
+    for room in rooms:
+        # Only update if the room is currently available
+        if room.current_status == 'available':
+            old_status = room.current_status
+            room.current_status = 'taken'
+            room.last_seen_date = current_time
+            room.times_changed += 1
+            
+            # Log the status change
+            RoomCRUD.create_room_change(
+                db, room.id, property_id, analysis_id,
+                "status_change", old_status, "taken",
+                f"Room marked as taken due to expired listing"
+            )
+            
+            # End current availability period
+            RoomAvailabilityPeriodCRUD.end_current_period(
+                db,
+                room_id=room.id,
+                end_date=current_time,
+                end_analysis_id=analysis_id
+            )
+            
+            updated_rooms.append(room)
+            print(f"🔄 Updated room {room.room_number} from {old_status} to taken")
+    
+    db.commit()
+    
+    return {
+        "updated_rooms": updated_rooms,
+        "total_changes": len(updated_rooms)
+    }
+
+
 
 def extract_price_section(url, analysis_data):
     """Extract only the specific price section from SpareRoom listing"""
@@ -101,15 +157,40 @@ def extract_price_section(url, analysis_data):
             # Check main picture
             _check_main_picture(soup, analysis_data)
             
-            # Process room data
-            _process_room_data(price_section, soup, analysis_data)
+            # ✅ FIXED: Check if listing is expired AFTER extracting other data
+            is_expired = _check_listing_expired(soup, analysis_data)
+            
+            if is_expired:
+                # ✅ FIXED: For expired listings, don't create any room tracking entries
+                print("💰 Calculating rental potential for expired listing...")
+                keys = price_section.find_all(class_='feature-list__key')
+                values = price_section.find_all(class_='feature-list__value')
+                
+                # Get total rooms from household section
+                actual_total_rooms = _get_total_rooms_count(soup, len(keys))
+                
+                # Calculate what the income would be if active
+                monthly_income, annual_income = calculate_rental_income(keys, values, actual_total_rooms)
+                analysis_data['Monthly Income'] = monthly_income
+                analysis_data['Annual Income'] = annual_income
+                analysis_data['Total Rooms'] = actual_total_rooms
+                
+                print(f"📊 Rental potential preserved: £{monthly_income}/month, £{annual_income}/year")
+                
+                # ✅ CRITICAL: Set flag and empty room list to prevent any room processing
+                analysis_data['_EXPIRED_LISTING'] = True
+                analysis_data['All Rooms List'] = []  # No room entries to process
+                
+                print("🚫 Listing expired - will update existing room statuses only")
+            else:
+                # Process room data normally for active listings
+                _process_room_data(price_section, soup, analysis_data)
             
         else:
             print("❌ Section <section class='feature feature--price_room_only'> NOT FOUND")
         
     except Exception as e:
         print(f"❌ Error: {e}")
-
 
 def _check_bills_inclusion(soup, analysis_data):
     """Check if bills are included"""
@@ -272,8 +353,82 @@ def _check_main_picture(soup, analysis_data):
         analysis_data['Main Photo URL'] = 'Not found'
 
 
+# ✅ NEW STATUS DETECTION FUNCTIONS
+def _is_room_taken(value_text):
+    """
+    ✅ NEW: Determine if a room is definitely taken
+    Returns True only if there's clear evidence the room is unavailable
+    """
+    value_upper = value_text.upper().strip()
+    
+    taken_indicators = [
+        "(NOW LET)",
+        "TAKEN",
+        "RESERVED", 
+        "PENDING",
+        "UNAVAILABLE",
+        "NOT AVAILABLE",
+        "OCCUPIED",
+        "LET AGREED"
+    ]
+    
+    return any(indicator in value_upper for indicator in taken_indicators)
+
+
+def _is_room_available(value_text):
+    """
+    ✅ IMPROVED: Determine if a room is available for rent
+    Now includes room types as available indicators
+    """
+    value_upper = value_text.upper().strip()
+    
+    # Explicit availability indicators
+    available_indicators = [
+        "AVAILABLE",
+        "TO LET", 
+        "FOR RENT",
+        "AVAILABLE NOW",
+        "IMMEDIATELY AVAILABLE",
+        "ROOM AVAILABLE"
+    ]
+    
+    # ✅ NEW: Room type indicators (these suggest the room is being advertised)
+    room_type_indicators = [
+        "SINGLE",
+        "DOUBLE", 
+        "ENSUITE",
+        "EN-SUITE",
+        "MASTER",
+        "TWIN",
+        "STUDIO",
+        "BEDSIT"
+    ]
+    
+    # Status that might indicate availability
+    potential_availability = [
+        "", 
+        "-", 
+        "N/A"
+    ]
+    
+    # Check for explicit availability
+    if any(indicator in value_upper for indicator in available_indicators):
+        return True
+    
+    # ✅ NEW: Check for room types (if it's just a room type, assume it's available)
+    if any(room_type in value_upper for room_type in room_type_indicators):
+        return True
+        
+    # Check for empty/minimal status
+    if value_upper in potential_availability:
+        return True
+    
+    return False
+
+
+# ✅ FIXED ROOM PROCESSING FUNCTION
 def _process_room_data(price_section, soup, analysis_data):
-    """Process room data from the price section"""
+    """Process room data from the price section - DEBUG VERSION"""
     print("=" * 60)
     print("📄 HTML CONTENT:")
     print(price_section.prettify())
@@ -290,48 +445,98 @@ def _process_room_data(price_section, soup, analysis_data):
     for i, value in enumerate(values, 1):
         print(f"  {i}: '{value.get_text().strip()}'")
     
+    # ✅ DEBUG: Check the loop range
+    loop_range = min(len(keys), len(values))
+    print(f"\n🔍 DEBUG: Loop will run {loop_range} times (min of {len(keys)} keys and {len(values)} values)")
+    
     # Process room availability
     print(f"\n🔗 ROOM AVAILABILITY ANALYSIS:")
     
     available_rooms = []
     available_rooms_details = []
     taken_rooms = []
+    uncertain_rooms = []
     room_details_list = []
     all_rooms_list = []
     
-    for i in range(min(len(keys), len(values))):
+    # ✅ DEBUG: Add iteration counter
+    for i in range(loop_range):
+        print(f"\n🔄 DEBUG: Processing iteration {i+1}/{loop_range}")
+        
         key_text = keys[i].get_text().strip()
         value_text = values[i].get_text().strip()
+        
+        print(f"   📝 Key: '{key_text}', Value: '{value_text}'")
         
         room_detail = f"{key_text} - {value_text}"
         room_details_list.append(room_detail)
         
-        if value_text.upper() == "(NOW LET)":
+        # ✅ DEBUG: Count before processing
+        print(f"   📊 Before: Available={len(available_rooms)}, Taken={len(taken_rooms)}, Uncertain={len(uncertain_rooms)}")
+        
+        # Process room status
+        if _is_room_taken(value_text):
             taken_rooms.append((key_text, value_text))
             clean_price = remove_pcm_from_price(key_text)
-            all_rooms_list.append(f"{i+1} - {clean_price}")
-        else:
+            all_rooms_list.append(f"{i+1} - {clean_price} (TAKEN)")
+            print(f"  ❌ TAKEN: '{key_text}' → '{value_text}'")
+            
+        elif _is_room_available(value_text):
             available_rooms.append((key_text, value_text))
             clean_price = remove_pcm_from_price(key_text)
-            available_rooms_details.append(f"{len(available_rooms)} - {clean_price}")
+            available_rooms_details.append(f"{clean_price} ({value_text})")
             all_rooms_list.append(f"{i+1} - {clean_price} ({value_text})")
+            print(f"  ✅ AVAILABLE: '{key_text}' → '{value_text}'")
+            
+        else:
+            uncertain_rooms.append((key_text, value_text))
+            clean_price = remove_pcm_from_price(key_text)
+            all_rooms_list.append(f"{i+1} - {clean_price} (STATUS UNCLEAR)")
+            print(f"  ❓ UNCERTAIN: '{key_text}' → '{value_text}'")
+        
+        # ✅ DEBUG: Count after processing
+        print(f"   📊 After: Available={len(available_rooms)}, Taken={len(taken_rooms)}, Uncertain={len(uncertain_rooms)}")
     
-    # Store room data
-    analysis_data['Room Details'] = '; '.join(room_details_list)
-    analysis_data['Listed Rooms'] = len(keys)
-    analysis_data['Available Rooms Details'] = available_rooms_details
-    analysis_data['All Rooms List'] = all_rooms_list
+    # ✅ DEBUG: Final counts
+    print(f"\n🔍 DEBUG: Final counts after loop:")
+    print(f"   Available rooms list: {len(available_rooms)} items")
+    print(f"   Taken rooms list: {len(taken_rooms)} items")
+    print(f"   Uncertain rooms list: {len(uncertain_rooms)} items")
+    print(f"   Total: {len(available_rooms) + len(taken_rooms) + len(uncertain_rooms)}")
+    
+    # Continue with the rest of your existing logic...
+    total_listed_rooms = len(keys)
+    confirmed_available = len(available_rooms)
+    confirmed_taken = len(taken_rooms)
+    uncertain_count = len(uncertain_rooms)
+    
+    print(f"\n📊 ROOM STATUS SUMMARY:")
+    print(f"  Total listed: {total_listed_rooms}")
+    print(f"  Confirmed available: {confirmed_available}")
+    print(f"  Confirmed taken: {confirmed_taken}")
+    print(f"  Uncertain status: {uncertain_count}")
     
     # Get total rooms from household section
     actual_total_rooms = _get_total_rooms_count(soup, len(keys))
     
-    # Store room counts
+    # Store data
     analysis_data['Total Rooms'] = actual_total_rooms
-    analysis_data['Available Rooms'] = len(available_rooms)
+    analysis_data['Available Rooms'] = confirmed_available
+    analysis_data['Listed Rooms'] = total_listed_rooms
+    analysis_data['Uncertain Rooms'] = uncertain_count
     
-    unlisted_rooms = actual_total_rooms - len(keys) if actual_total_rooms > len(keys) else 0
-    total_taken = len(taken_rooms) + unlisted_rooms
+    # ✅ IMPROVED: Better taken room calculation
+    unlisted_rooms = actual_total_rooms - total_listed_rooms if actual_total_rooms > total_listed_rooms else 0
+    
+    # Assume uncertain rooms are taken (conservative approach)
+    total_taken = confirmed_taken + uncertain_count + unlisted_rooms
     analysis_data['Taken Rooms'] = total_taken
+    
+    # Store room data
+    analysis_data['Room Details'] = '; '.join(room_details_list)
+    analysis_data['Available Rooms Details'] = available_rooms_details
+    analysis_data['All Rooms List'] = all_rooms_list
+    analysis_data['Uncertain Rooms Details'] = uncertain_rooms  # ✅ NEW: Store uncertain room details
     
     # Calculate rental income
     monthly_income, annual_income = calculate_rental_income(keys, values, actual_total_rooms)
@@ -339,7 +544,7 @@ def _process_room_data(price_section, soup, analysis_data):
     analysis_data['Annual Income'] = annual_income
     
     # Print summary
-    _print_room_summary(available_rooms, taken_rooms, actual_total_rooms, len(keys), total_taken, unlisted_rooms)
+    _print_room_summary_fixed(available_rooms, taken_rooms, uncertain_rooms, actual_total_rooms, total_listed_rooms, total_taken, unlisted_rooms)
 
 
 def _get_total_rooms_count(soup, listed_rooms_count):
@@ -375,29 +580,98 @@ def _get_total_rooms_count(soup, listed_rooms_count):
     return actual_total_rooms
 
 
-def _print_room_summary(available_rooms, taken_rooms, actual_total_rooms, listed_rooms, total_taken, unlisted_rooms):
-    """Print room summary"""
-    print(f"\n✅ AVAILABLE ROOMS ({len(available_rooms)}):")
+def _print_room_summary_fixed(available_rooms, taken_rooms, uncertain_rooms, actual_total_rooms, listed_rooms, total_taken, unlisted_rooms):
+    """✅ IMPROVED: Print comprehensive room summary with uncertainty tracking"""
+    print(f"\n✅ CONFIRMED AVAILABLE ROOMS ({len(available_rooms)}):")
     if available_rooms:
         for i, (price, room_type) in enumerate(available_rooms, 1):
             print(f"  {i}: '{price}' → '{room_type}'")
     else:
-        print("  No available rooms found")
+        print("  No confirmed available rooms found")
     
-    print(f"\n❌ TAKEN ROOMS ({len(taken_rooms)}):")
+    print(f"\n❌ CONFIRMED TAKEN ROOMS ({len(taken_rooms)}):")
     if taken_rooms:
         for i, (price, status) in enumerate(taken_rooms, 1):
             print(f"  {i}: '{price}' → '{status}'")
     else:
-        print("  No taken rooms found")
+        print("  No confirmed taken rooms found")
     
-    print(f"\n📊 SUMMARY:")
+    print(f"\n❓ UNCERTAIN STATUS ROOMS ({len(uncertain_rooms)}):")
+    if uncertain_rooms:
+        for i, (price, status) in enumerate(uncertain_rooms, 1):
+            print(f"  {i}: '{price}' → '{status}' (assuming taken)")
+    else:
+        print("  No rooms with uncertain status")
+    
+    print(f"\n📊 FINAL SUMMARY:")
     print(f"  Total rooms in house: {actual_total_rooms}")
     print(f"  Rooms listed: {listed_rooms}")
-    print(f"  Available: {len(available_rooms)}")
+    print(f"  Confirmed available: {len(available_rooms)}")
+    print(f"  Confirmed taken: {len(taken_rooms)}")
+    print(f"  Uncertain (treated as taken): {len(uncertain_rooms)}")
     
-    print(f"  Taken: {total_taken}", end="")
+    print(f"  Total taken: {total_taken}", end="")
     if unlisted_rooms > 0:
         print(f" (includes {unlisted_rooms} unlisted/occupied)")
     else:
         print()
+    
+    print(f"\n⚠️  CONSERVATIVE APPROACH: Only counting explicitly available rooms")
+    print(f"   This prevents overestimating availability when room status is unclear")
+
+
+# ADD this function to scraper.py
+
+def _check_listing_expired(soup, analysis_data):
+    """Check if the listing is expired/not accepting applications"""
+    print("\n🔍 CHECKING IF LISTING IS EXPIRED...")
+    
+    # Look for the expired listing indicator
+    expired_div = soup.find('div', class_='listing-contact__expired')
+    
+    if expired_div:
+        expired_text = expired_div.get_text().strip()
+        print(f"🚫 LISTING EXPIRED: '{expired_text}'")
+        
+        # ✅ FIXED: Only update availability-related fields, preserve property info
+        analysis_data['Listing Status'] = 'Expired - Not Accepting Applications'
+        analysis_data['Available Rooms'] = 0
+        analysis_data['Available Rooms Details'] = []
+        analysis_data['Meets Requirements'] = 'No - Listing expired'
+        
+        # ✅ PRESERVE: Keep Monthly Income, Annual Income, Total Rooms, etc.
+        # These represent the property's rental potential when it was active
+        # Don't set them to 0 - let them be calculated from the last known data
+        
+        print("📊 Status: Listing marked as expired - availability set to 0, preserving rental data")
+        return True  # Listing is expired
+    else:
+        print("✅ Listing is active - proceeding with room analysis")
+        return False  # Listing is active
+    
+def _check_listing_expired(soup, analysis_data):
+    """Check if the listing is expired/not accepting applications"""
+    print("\n🔍 CHECKING IF LISTING IS EXPIRED...")
+    
+    # Look for the expired listing indicator
+    expired_div = soup.find('div', class_='listing-contact__expired')
+    
+    if expired_div:
+        expired_text = expired_div.get_text().strip()
+        print(f"🚫 LISTING EXPIRED: '{expired_text}'")
+        
+        # ✅ FIXED: Only update availability-related fields, preserve property info
+        analysis_data['Listing Status'] = 'Expired - Not Accepting Applications'
+        analysis_data['Available Rooms'] = 0
+        analysis_data['Available Rooms Details'] = []
+        analysis_data['Meets Requirements'] = 'No - Listing expired'
+        
+        # ✅ PRESERVE: Keep Monthly Income, Annual Income, Total Rooms, etc.
+        # These represent the property's rental potential when it was active
+        # Don't set them to 0 - let them be calculated from the last known data
+        
+        print("📊 Status: Listing marked as expired - availability set to 0, preserving rental data")
+        return True  # Listing is expired
+    else:
+        print("✅ Listing is active - proceeding with room analysis")
+        return False  # Listing is active
