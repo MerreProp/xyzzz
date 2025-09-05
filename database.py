@@ -3,7 +3,8 @@ Database configuration for HMO Analyser
 """
 
 import os
-from sqlalchemy import create_engine, MetaData
+import time
+from sqlalchemy import create_engine, MetaData, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
@@ -61,3 +62,29 @@ def test_connection():
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
         return False
+    
+def test_connection_with_retry(max_retries=3, delay=5):
+    """Test database connection with retry logic"""
+    for attempt in range(max_retries):
+        try:
+            print(f"🔄 Testing database connection (attempt {attempt + 1}/{max_retries})...")
+            
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT 1 as test"))
+                test_value = result.scalar()
+                
+                if test_value == 1:
+                    print("✅ Database connection successful!")
+                    return True, engine
+                    
+        except Exception as e:
+            print(f"❌ Attempt {attempt + 1} failed: {e}")
+            
+            if attempt < max_retries - 1:
+                print(f"⏳ Waiting {delay} seconds before retry...")
+                time.sleep(delay)
+            else:
+                print("❌ All connection attempts failed")
+                return False, None
+    
+    return False, None

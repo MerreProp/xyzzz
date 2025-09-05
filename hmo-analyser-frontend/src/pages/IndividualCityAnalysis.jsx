@@ -1,11 +1,60 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, TrendingUp, MapPin, BarChart3, Clock } from 'lucide-react';
 import LTVCalculator from '../components/LTVCalculator';
+import MarketTimingAnalysis from '../components/MarketTimingAnalysis';
+import EnhancedIncomeDistribution from '../components/EnhancedIncomeDistribution';
+import { useTheme } from '../contexts/ThemeContext';
+import { useDarkMode } from '../contexts/DarkModeContext';
+import { 
+  Download, 
+  RefreshCw, 
+  Calendar, 
+  ChevronRight, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  Eye,
+  MoreHorizontal,
+  Filter,
+  Users,
+  Building
+} from 'lucide-react';
 
 const IndividualCityAnalysis = () => {
   const [cityData, setCityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Add theme system
+  const { currentPalette } = useTheme();
+  const { isDarkMode } = useDarkMode();
+
+  const baseColors = {
+    darkSlate: '#2C3E4A',
+    lightCream: '#F5F1E8',
+    softGray: '#A8A5A0',
+  };
+
+  const theme = isDarkMode ? {
+    background: '#1a202c',
+    cardBackground: '#2d3748',
+    text: baseColors.lightCream,
+    textSecondary: '#a0aec0',
+    border: 'rgba(255, 255, 255, 0.1)',
+    accent: currentPalette.primary,
+    success: '#48bb78',
+    warning: '#ed8936',
+    danger: '#f56565'
+  } : {
+    background: '#f7fafc',
+    cardBackground: '#ffffff',
+    text: baseColors.darkSlate,
+    textSecondary: baseColors.softGray,
+    border: '#e2e8f0',
+    accent: currentPalette.primary,
+    success: '#38a169',
+    warning: '#d69e2e',
+    danger: '#e53e3e'
+  };
 
   // Helper function to capitalize city name
   const capitalizeCityName = (name) => {
@@ -122,6 +171,111 @@ const IndividualCityAnalysis = () => {
     window.location.href = '/cityanalysis';
   };
 
+  // Reusable Metric Card Component
+  const MetricCard = ({ title, value, subtitle, icon, color, theme }) => {
+
+    if (!theme) {
+      console.error('MetricCard: theme prop is undefined');
+      return null;
+    }
+  
+    const colorClasses = {
+      blue: currentPalette.primary,
+      green: '#10b981',
+      orange: '#f59e0b',
+      purple: '#8b5cf6'
+    };
+    
+    const cardColor = colorClasses[color];
+
+    return (
+      <div
+        style={{
+          padding: '1.25rem',
+          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc',
+          borderRadius: '10px',
+          border: `1px solid ${theme.border}`,
+          transition: 'all 0.2s ease',
+          cursor: 'default',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-1px)';
+          e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.1)';
+          e.currentTarget.style.borderColor = cardColor;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0px)';
+          e.currentTarget.style.boxShadow = 'none';
+          e.currentTarget.style.borderColor = theme.border;
+        }}
+      >
+        {/* Background gradient accent */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '50px',
+          height: '50px',
+          background: `linear-gradient(135deg, ${cardColor}12, ${cardColor}03)`,
+          borderRadius: '0 10px 0 100%',
+          pointerEvents: 'none'
+        }} />
+        
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          marginBottom: '0.75rem',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <div style={{ flex: 1 }}>
+            <h3 style={{
+              fontSize: '0.75rem',
+              fontWeight: '500',
+              color: theme.textSecondary,
+              margin: '0 0 0.25rem 0',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>
+              {title}
+            </h3>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: theme.text,
+              lineHeight: 1,
+              margin: 0
+            }}>
+              {value}
+            </div>
+          </div>
+          
+          <div style={{
+            padding: '0.5rem',
+            backgroundColor: `${cardColor}20`,
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {React.cloneElement(icon, { size: 18, style: { color: cardColor } })}
+          </div>
+        </div>
+        
+        <div style={{
+          fontSize: '0.75rem',
+          color: theme.textSecondary,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {subtitle}
+        </div>
+      </div>
+    );
+  };
   if (loading) {
     return (
       <div style={{
@@ -146,6 +300,215 @@ const IndividualCityAnalysis = () => {
       </div>
     );
   }
+
+  // Financial Overview Component
+  const FinancialOverview = ({ cityData }) => {
+    const [viewMode, setViewMode] = useState('distribution');
+
+    // Process financial data
+    const incomeData = cityData.properties
+      .filter(p => p.monthly_income && p.monthly_income > 0)
+      .map(p => ({
+        income: p.monthly_income,
+        rooms: p.total_rooms,
+        incomePerRoom: p.monthly_income / p.total_rooms,
+        address: p.address
+      }))
+      .sort((a, b) => a.income - b.income);
+
+    // Calculate statistics
+    const stats = {
+      totalProperties: cityData.properties.length,
+      incomeProperties: incomeData.length,
+      totalIncome: incomeData.reduce((sum, p) => sum + p.income, 0),
+      averageIncome: incomeData.length > 0 ? incomeData.reduce((sum, p) => sum + p.income, 0) / incomeData.length : 0,
+      medianIncome: incomeData.length > 0 ? incomeData[Math.floor(incomeData.length / 2)]?.income || 0 : 0,
+      minIncome: incomeData.length > 0 ? incomeData[0]?.income || 0 : 0,
+      maxIncome: incomeData.length > 0 ? incomeData[incomeData.length - 1]?.income || 0 : 0,
+      averageIncomePerRoom: incomeData.length > 0 ?
+        incomeData.reduce((sum, p) => sum + p.incomePerRoom, 0) / incomeData.length : 0
+    };
+
+    // Create distribution data (income ranges)
+    // Helper function to create dynamic income ranges
+    const createDynamicRanges = (incomeData, stats) => {
+      if (!incomeData || incomeData.length === 0) {
+        return [{ label: 'No Data', min: 0, max: Infinity }];
+      }
+
+      const { minIncome, maxIncome } = stats;
+      const range = maxIncome - minIncome;
+      
+      // If all properties have the same income, create a single range
+      if (range === 0) {
+        return [{
+          label: `£${Math.round(minIncome).toLocaleString()}`,
+          min: minIncome - 0.1,
+          max: minIncome + 0.1
+        }];
+      }
+      
+      // Determine number of buckets based on data size
+      const dataSize = incomeData.length;
+      let bucketCount;
+      if (dataSize <= 5) bucketCount = Math.min(3, dataSize);
+      else if (dataSize <= 15) bucketCount = 4;
+      else if (dataSize <= 30) bucketCount = 5;
+      else bucketCount = 6;
+      
+      // Calculate bucket size
+      const bucketSize = range / bucketCount;
+      
+      // Create dynamic ranges
+      const ranges = [];
+      for (let i = 0; i < bucketCount; i++) {
+        const min = minIncome + (i * bucketSize);
+        const max = i === bucketCount - 1 ? maxIncome + 1 : minIncome + ((i + 1) * bucketSize);
+        
+        let label;
+        if (i === bucketCount - 1) {
+          // Last bucket: "£X+"
+          label = `£${Math.round(min).toLocaleString()}+`;
+        } else {
+          // Regular buckets: "£X-£Y"
+          label = `£${Math.round(min).toLocaleString()}-£${Math.round(max - 1).toLocaleString()}`;
+        }
+        
+        ranges.push({ label, min, max });
+      }
+      
+      return ranges;
+    };
+
+    // Create dynamic distribution data using the new function
+    const ranges = createDynamicRanges(incomeData, stats);
+
+
+
+    const distributionData = ranges.map(range => {
+      const count = incomeData.filter(p => 
+        p.income >= range.min && p.income < range.max
+      ).length;
+      return {
+        label: range.label,
+        count,
+        percentage: incomeData.length > 0 ? (count / incomeData.length) * 100 : 0
+      };
+    });
+
+    const viewTabs = [
+      { key: 'distribution', label: 'Distribution' },
+      { key: 'breakdown', label: 'Breakdown' },
+      { key: 'comparison', label: 'Top Properties' }
+    ];
+
+    return (
+      <div style={{
+        backgroundColor: theme.cardBackground,
+        borderRadius: '16px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+        border: `1px solid ${theme.border}`,
+        marginBottom: '2rem',
+        transition: 'all 0.3s ease'
+      }}>
+        
+        {/* Header */}
+        <div style={{
+          padding: '1.5rem',
+          borderBottom: `1px solid ${theme.border}`
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '1rem'
+          }}>
+            <div>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: theme.text,
+                margin: '0 0 0.25rem 0',
+                letterSpacing: '-0.025em'
+              }}>
+                Financial Overview
+              </h2>
+              <p style={{
+                fontSize: '0.875rem',
+                color: theme.textSecondary,
+                margin: 0
+              }}>
+                Revenue analysis and income distribution
+              </p>
+            </div>
+          </div>
+
+          {/* Tab Navigation - Matching your Analyze.jsx style */}
+          <div style={{
+            display: 'flex',
+            borderBottom: `1px solid ${theme.border}`,
+            overflowX: 'auto'
+          }}>
+            {viewTabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setViewMode(tab.key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '1rem 1.5rem',
+                  border: 'none',
+                  backgroundColor: viewMode === tab.key ? currentPalette.primary : 'transparent',
+                  color: viewMode === tab.key ? 'white' : theme.text,
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  borderBottom: viewMode === tab.key ? `2px solid ${currentPalette.primary}` : '2px solid transparent',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  borderRadius: viewMode === tab.key ? '8px 8px 0 0' : '0'
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+
+        {/* Content */}
+        <div style={{ padding: '1.5rem' }}>
+          {/* Key Stats Row */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px'
+          }}>
+            <StatCard label="Total Income" value={`£${stats.totalIncome.toLocaleString()}`} subtitle="/month" />
+            <StatCard label="Average Income" value={`£${Math.round(stats.averageIncome).toLocaleString()}`} subtitle="/property" />
+            <StatCard label="Median Income" value={`£${Math.round(stats.medianIncome).toLocaleString()}`} subtitle="/property" />
+            <StatCard label="Income per Room" value={`£${Math.round(stats.averageIncomePerRoom)}`} subtitle="/room/month" />
+          </div>
+
+          {/* Dynamic Content Based on View Mode */}
+          {viewMode === 'distribution' && (
+            <IncomeDistributionChart distributionData={distributionData} stats={stats} />
+          )}
+          
+          {viewMode === 'breakdown' && (
+            <IncomeBreakdown incomeData={incomeData} stats={stats} />
+          )}
+          
+          {viewMode === 'comparison' && (
+            <TopPropertiesTable incomeData={incomeData.slice(-10)} />
+          )}
+        </div>
+      </div>
+    );
+  };
+
 
   if (error) {
     return (
@@ -185,45 +548,73 @@ const IndividualCityAnalysis = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#f9fafb',
-      padding: '24px'
+      backgroundColor: theme.background,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      transition: 'all 0.3s ease'
     }}>
+      {/* Professional Header */}
       <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto'
+        marginBottom: '2rem'
       }}>
-        {/* Header */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          marginBottom: '32px'
+          gap: '1rem',
+          marginBottom: '0.5rem'
         }}>
           <button
             onClick={handleBackToSelection}
             style={{
               display: 'flex',
               alignItems: 'center',
-              padding: '8px 16px',
-              backgroundColor: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: theme.cardBg,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '8px',
               cursor: 'pointer',
-              marginRight: '16px',
-              fontSize: '14px',
-              color: '#374151'
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: theme.text,
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = currentPalette.primary;
+              e.currentTarget.style.color = 'white';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.cardBg;
+              e.currentTarget.style.color = theme.text;
             }}
           >
-            <ArrowLeft style={{ width: '16px', height: '16px', marginRight: '8px' }} />
+            <ArrowLeft size={16} />
             Back to Cities
           </button>
-          <h1 style={{
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            color: '#111827'
-          }}>
-            {capitalizeCityName(cityData.name)} Analysis
-          </h1>
         </div>
+        
+        <h1 style={{
+          fontSize: '2rem',
+          fontWeight: '700',
+          color: theme.text,
+          marginBottom: '0.5rem',
+          letterSpacing: '-0.025em'
+        }}>
+          {capitalizeCityName(cityData.name)} Analysis
+        </h1>
+        <p style={{
+          fontSize: '1rem',
+          color: theme.textSecondary,
+          margin: 0
+        }}>
+          Comprehensive analytics and market insights for {cityData.propertyCount} properties
+        </p>
+      </div>
+
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '24px'
+      }}>
 
         {/* Key Metrics Cards */}
         <div style={{
@@ -238,6 +629,7 @@ const IndividualCityAnalysis = () => {
             subtitle={`${cityData.recentlyUpdated} updated recently`}
             icon={<BarChart3 style={{ width: '24px', height: '24px' }} />}
             color="blue"
+            theme={theme}
           />
           <MetricCard 
             title="Monthly Income" 
@@ -245,6 +637,7 @@ const IndividualCityAnalysis = () => {
             subtitle={`£${cityData.avgIncome}/property avg`}
             icon={<TrendingUp style={{ width: '24px', height: '24px' }} />}
             color="green"
+            theme={theme}  // ADD THIS
           />
           <MetricCard 
             title="Income Properties" 
@@ -252,6 +645,7 @@ const IndividualCityAnalysis = () => {
             subtitle={`${Math.round((cityData.propertiesWithIncome / cityData.propertyCount) * 100)}% of total`}
             icon={<Clock style={{ width: '24px', height: '24px' }} />}
             color="orange"
+            theme={theme}  // ADD THIS
           />
           <MetricCard 
             title="Areas Tracked" 
@@ -259,278 +653,24 @@ const IndividualCityAnalysis = () => {
             subtitle="Neighborhoods"
             icon={<BarChart3 style={{ width: '24px', height: '24px' }} />}
             color="purple"
+            theme={theme}  // ADD THIS
           />
         </div>
 
         {/* Financial Overview Section */}
         <FinancialOverview cityData={cityData} />
 
+        {/* Enhanced Income Distribution Section */}
+        <EnhancedIncomeDistribution cityData={cityData} />
+
         {/* Market Timing Section */}
-        <AnalysisSection
-          title="Market Timing Analysis"
-          icon={<Clock style={{ width: '20px', height: '20px', marginRight: '8px', color: '#ea580c' }} />}
-          placeholder="Market timing charts and analysis will go here"
-          features="Features: Avg time on market, weekly/monthly velocity, seasonal patterns"
-        />
+        <MarketTimingAnalysis cityData={cityData} />
 
         {/* Neighborhood Comparison Section */}
         <NeighborhoodComparison cityData={cityData} />
 
         {/* LTV Calculator Section */}
         <LTVCalculator cityData={cityData} />
-      </div>
-    </div>
-  );
-};
-
-// Reusable Metric Card Component
-const MetricCard = ({ title, value, subtitle, icon, color }) => {
-  const colorClasses = {
-    blue: { text: '#2563eb', bg: '#eff6ff' },
-    green: { text: '#059669', bg: '#ecfdf5' },
-    orange: { text: '#ea580c', bg: '#fff7ed' },
-    purple: { text: '#7c3aed', bg: '#f3e8ff' }
-  };
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-      border: '1px solid #e5e7eb',
-      padding: '24px'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '12px'
-      }}>
-        <div style={{
-          padding: '8px',
-          borderRadius: '8px',
-          backgroundColor: colorClasses[color].bg,
-          color: colorClasses[color].text
-        }}>
-          {icon}
-        </div>
-      </div>
-      <div>
-        <p style={{
-          fontSize: '1.5rem',
-          fontWeight: 'bold',
-          color: '#111827',
-          marginBottom: '4px'
-        }}>
-          {value}
-        </p>
-        <p style={{
-          fontSize: '14px',
-          fontWeight: '500',
-          color: '#4b5563'
-        }}>
-          {title}
-        </p>
-        {subtitle && (
-          <p style={{
-            fontSize: '12px',
-            color: '#6b7280',
-            marginTop: '4px'
-          }}>
-            {subtitle}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Financial Overview Component
-const FinancialOverview = ({ cityData }) => {
-  const [viewMode, setViewMode] = useState('distribution');
-
-  // Process financial data
-  const incomeData = cityData.properties
-    .filter(p => p.monthly_income && p.monthly_income > 0)
-    .map(p => ({
-      income: p.monthly_income,
-      rooms: p.total_rooms,
-      incomePerRoom: p.monthly_income / p.total_rooms,
-      address: p.address
-    }))
-    .sort((a, b) => a.income - b.income);
-
-  // Calculate statistics
-  const stats = {
-    totalProperties: cityData.properties.length,
-    incomeProperties: incomeData.length,
-    totalIncome: incomeData.reduce((sum, p) => sum + p.income, 0),
-    averageIncome: incomeData.length > 0 ? incomeData.reduce((sum, p) => sum + p.income, 0) / incomeData.length : 0,
-    medianIncome: incomeData.length > 0 ? incomeData[Math.floor(incomeData.length / 2)]?.income || 0 : 0,
-    minIncome: incomeData.length > 0 ? incomeData[0]?.income || 0 : 0,
-    maxIncome: incomeData.length > 0 ? incomeData[incomeData.length - 1]?.income || 0 : 0,
-    averageIncomePerRoom: incomeData.length > 0 ?
-      incomeData.reduce((sum, p) => sum + p.incomePerRoom, 0) / incomeData.length : 0
-  };
-
-  // Create distribution data (income ranges)
-  // Helper function to create dynamic income ranges
-  const createDynamicRanges = (incomeData, stats) => {
-    if (!incomeData || incomeData.length === 0) {
-      return [{ label: 'No Data', min: 0, max: Infinity }];
-    }
-
-    const { minIncome, maxIncome } = stats;
-    const range = maxIncome - minIncome;
-    
-    // If all properties have the same income, create a single range
-    if (range === 0) {
-      return [{
-        label: `£${Math.round(minIncome).toLocaleString()}`,
-        min: minIncome - 0.1,
-        max: minIncome + 0.1
-      }];
-    }
-    
-    // Determine number of buckets based on data size
-    const dataSize = incomeData.length;
-    let bucketCount;
-    if (dataSize <= 5) bucketCount = Math.min(3, dataSize);
-    else if (dataSize <= 15) bucketCount = 4;
-    else if (dataSize <= 30) bucketCount = 5;
-    else bucketCount = 6;
-    
-    // Calculate bucket size
-    const bucketSize = range / bucketCount;
-    
-    // Create dynamic ranges
-    const ranges = [];
-    for (let i = 0; i < bucketCount; i++) {
-      const min = minIncome + (i * bucketSize);
-      const max = i === bucketCount - 1 ? maxIncome + 1 : minIncome + ((i + 1) * bucketSize);
-      
-      let label;
-      if (i === bucketCount - 1) {
-        // Last bucket: "£X+"
-        label = `£${Math.round(min).toLocaleString()}+`;
-      } else {
-        // Regular buckets: "£X-£Y"
-        label = `£${Math.round(min).toLocaleString()}-£${Math.round(max - 1).toLocaleString()}`;
-      }
-      
-      ranges.push({ label, min, max });
-    }
-    
-    return ranges;
-  };
-
-  // Create dynamic distribution data using the new function
-  const ranges = createDynamicRanges(incomeData, stats);
-
-
-
-  const distributionData = ranges.map(range => {
-    const count = incomeData.filter(p => 
-      p.income >= range.min && p.income < range.max
-    ).length;
-    return {
-      label: range.label,
-      count,
-      percentage: incomeData.length > 0 ? (count / incomeData.length) * 100 : 0
-    };
-  });
-
-  const viewTabs = [
-    { key: 'distribution', label: 'Distribution' },
-    { key: 'breakdown', label: 'Breakdown' },
-    { key: 'comparison', label: 'Top Properties' }
-  ];
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-      border: '1px solid #e5e7eb',
-      marginBottom: '32px'
-    }}>
-      <div style={{
-        padding: '24px',
-        borderBottom: '1px solid #e5e7eb'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h2 style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#111827',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <TrendingUp style={{ width: '20px', height: '20px', marginRight: '8px', color: '#059669' }} />
-            Financial Overview
-          </h2>
-          
-          <div style={{
-            display: 'flex',
-            backgroundColor: '#f3f4f6',
-            borderRadius: '6px',
-            padding: '4px'
-          }}>
-            {viewTabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setViewMode(tab.key)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  backgroundColor: viewMode === tab.key ? 'white' : 'transparent',
-                  color: viewMode === tab.key ? '#059669' : '#6b7280',
-                  boxShadow: viewMode === tab.key ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div style={{ padding: '24px' }}>
-        {/* Key Stats Row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '16px',
-          marginBottom: '24px'
-        }}>
-          <StatCard label="Total Income" value={`£${stats.totalIncome.toLocaleString()}`} subtitle="/month" />
-          <StatCard label="Average Income" value={`£${Math.round(stats.averageIncome).toLocaleString()}`} subtitle="/property" />
-          <StatCard label="Median Income" value={`£${Math.round(stats.medianIncome).toLocaleString()}`} subtitle="/property" />
-          <StatCard label="Income per Room" value={`£${Math.round(stats.averageIncomePerRoom)}`} subtitle="/room/month" />
-        </div>
-
-        {/* Dynamic Content Based on View Mode */}
-        {viewMode === 'distribution' && (
-          <IncomeDistributionChart distributionData={distributionData} stats={stats} />
-        )}
-        
-        {viewMode === 'breakdown' && (
-          <IncomeBreakdown incomeData={incomeData} stats={stats} />
-        )}
-        
-        {viewMode === 'comparison' && (
-          <TopPropertiesTable incomeData={incomeData.slice(-10)} />
-        )}
       </div>
     </div>
   );

@@ -1,0 +1,47 @@
+{
+  "processing_date": "2025-08-04T10:50:00.125938",
+  "total_records": 223,
+  "locations": {
+    "banbury": {
+      "name": "Banbury",
+      "category": "town",
+      "record_count": 114,
+      "postcode_prefixes": [
+        "OX16",
+        "OX15"
+      ],
+      "sample_addresses": [
+        "RUSKIN HOUSE, Ruskin Road, BANBURY, Oxfordshire, OX16 9HX",
+        "ASHBOURNE HOUSE AND STRATHMORE HOUSE, WATERPERRY COURT, 2 - 4, Middleton Road, BANBURY, Oxfordshire, OX16 4QD",
+        "8 Calthorpe Road, BANBURY, Oxfordshire, OX16 5HS"
+      ]
+    },
+    "bicester": {
+      "name": "Bicester",
+      "category": "town",
+      "record_count": 77,
+      "postcode_prefixes": [
+        "OX26",
+        "OX25"
+      ],
+      "sample_addresses": [
+        "4A Banbury Road, BICESTER, Oxfordshire, OX26 2HJ",
+        "4 Foundation Square, Ambrosden, BICESTER, Oxfordshire, OX25 2AQ",
+        "5 George Street, BICESTER, Oxfordshire, OX26 2EB"
+      ]
+    },
+    "kidlington": {
+      "name": "Kidlington",
+      "category": "village",
+      "record_count": 32,
+      "postcode_prefixes": [
+        "OX5"
+      ],
+      "sample_addresses": [
+        "14 Orchard Way, KIDLINGTON, Oxfordshire, OX5 2JD",
+        "33 Hampden Drive, KIDLINGTON, Oxfordshire, OX5 2LR",
+        "95 Lock Crescent, KIDLINGTON, Oxfordshire, OX5 1HG"
+      ]
+    }
+  }
+}

@@ -306,7 +306,7 @@ def _check_advertiser_details(soup, analysis_data):
         analysis_data['Advertiser Name'] = advertiser_name
     else:
         print("❌ Advertiser name not found")
-        analysis_data['Advertiser Name'] = 'Not found'
+        analysis_data['Advertiser Name'] = None
     
     # Check advertiser profile link
     profile_link = soup.find('a', title="View the advertiser's profile")
@@ -634,7 +634,7 @@ def _check_listing_expired(soup, analysis_data):
         print(f"🚫 LISTING EXPIRED: '{expired_text}'")
         
         # ✅ FIXED: Only update availability-related fields, preserve property info
-        analysis_data['Listing Status'] = 'Expired - Not Accepting Applications'
+        analysis_data['Listing Status'] = 'Unavailable'
         analysis_data['Available Rooms'] = 0
         analysis_data['Available Rooms Details'] = []
         analysis_data['Meets Requirements'] = 'No - Listing expired'
@@ -649,29 +649,3 @@ def _check_listing_expired(soup, analysis_data):
         print("✅ Listing is active - proceeding with room analysis")
         return False  # Listing is active
     
-def _check_listing_expired(soup, analysis_data):
-    """Check if the listing is expired/not accepting applications"""
-    print("\n🔍 CHECKING IF LISTING IS EXPIRED...")
-    
-    # Look for the expired listing indicator
-    expired_div = soup.find('div', class_='listing-contact__expired')
-    
-    if expired_div:
-        expired_text = expired_div.get_text().strip()
-        print(f"🚫 LISTING EXPIRED: '{expired_text}'")
-        
-        # ✅ FIXED: Only update availability-related fields, preserve property info
-        analysis_data['Listing Status'] = 'Expired - Not Accepting Applications'
-        analysis_data['Available Rooms'] = 0
-        analysis_data['Available Rooms Details'] = []
-        analysis_data['Meets Requirements'] = 'No - Listing expired'
-        
-        # ✅ PRESERVE: Keep Monthly Income, Annual Income, Total Rooms, etc.
-        # These represent the property's rental potential when it was active
-        # Don't set them to 0 - let them be calculated from the last known data
-        
-        print("📊 Status: Listing marked as expired - availability set to 0, preserving rental data")
-        return True  # Listing is expired
-    else:
-        print("✅ Listing is active - proceeding with room analysis")
-        return False  # Listing is active

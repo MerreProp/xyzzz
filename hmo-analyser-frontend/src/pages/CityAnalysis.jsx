@@ -1,10 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, MapPin } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { useDarkMode } from '../contexts/DarkModeContext';
 
 const CitySelectionPage = () => {
+  const { currentPalette } = useTheme();
+  const { isDarkMode } = useDarkMode();
   const [availableCities, setAvailableCities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const baseColors = {
+    darkSlate: '#2C3E4A',
+    lightCream: '#F5F1E8',
+    softGray: '#A8A5A0',
+  };
+
+  const theme = isDarkMode ? {
+    mainBg: '#1a2b32',
+    cardBg: '#2c3e4a',
+    text: baseColors.lightCream,
+    textSecondary: currentPalette.secondary,
+    border: 'rgba(180, 180, 180, 0.2)',
+    accent: currentPalette.primary,
+  } : {
+    mainBg: baseColors.lightCream,
+    cardBg: '#ffffff',
+    text: baseColors.darkSlate,
+    textSecondary: baseColors.softGray,
+    border: 'rgba(168, 165, 160, 0.3)',
+    accent: currentPalette.accent,
+  };
 
   useEffect(() => {
     const fetchCitiesData = async () => {
@@ -79,6 +105,19 @@ const CitySelectionPage = () => {
               propertiesWithIncome++;
             }
           });
+
+          // Add this new calculation after the existing forEach:
+          let totalRooms = 0;
+          let propertiesWithRooms = 0;
+
+          properties.forEach(property => {
+            if (property.total_rooms && property.total_rooms > 0 && property.monthly_income && property.monthly_income > 0) {
+              totalRooms += property.total_rooms;
+              propertiesWithRooms++;
+            }
+          });
+
+          const avgIncomePerRoom = totalRooms > 0 ? Math.round(totalIncome / totalRooms) : 0;
           
           const avgIncome = propertiesWithIncome > 0 ? Math.round(totalIncome / propertiesWithIncome) : 0;
           
@@ -86,6 +125,7 @@ const CitySelectionPage = () => {
             name: cityName,
             propertyCount: properties.length,
             avgIncome,
+            avgIncomePerRoom,
             totalIncome: Math.round(totalIncome),
             propertiesWithIncome
           });
@@ -118,7 +158,7 @@ const CitySelectionPage = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.mainBg,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -133,7 +173,7 @@ const CitySelectionPage = () => {
             animation: 'spin 1s linear infinite',
             margin: '0 auto 16px'
           }}></div>
-          <p style={{ color: '#6b7280' }}>Loading cities...</p>
+          <p style={{ color: theme.textSecondary }}>Loading cities...</p>
         </div>
         <style>{`
           @keyframes spin {
@@ -148,7 +188,7 @@ const CitySelectionPage = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#f9fafb',
+      backgroundColor: theme.mainBg,
       padding: '32px 0'
     }}>
       <div style={{
@@ -163,12 +203,12 @@ const CitySelectionPage = () => {
           <h1 style={{
             fontSize: '2rem',
             fontWeight: 'bold',
-            color: '#111827',
+            color: theme.text,
             marginBottom: '8px'
           }}>
             City Analysis
           </h1>
-          <p style={{ color: '#6b7280' }}>
+          <p style={{ color: theme.textSecondary }}>
             Select a city to view detailed market analysis and insights
           </p>
         </div>
@@ -176,12 +216,13 @@ const CitySelectionPage = () => {
         {/* Error State */}
         {error && (
           <div style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
+            backgroundColor: isDarkMode ? '#991b1b' : '#fef2f2',
+            border: `1px solid ${isDarkMode ? '#dc2626' : '#fecaca'}`,
+            color: isDarkMode ? '#fecaca' : '#dc2626',
             padding: '16px',
             marginBottom: '24px',
-            textAlign: 'center'
+            textAlign: 'center',
+            transition: 'all 0.3s ease',                    // ← Add this line
           }}>
             <p style={{ color: '#dc2626', marginBottom: '8px' }}>⚠️ {error}</p>
             <button
@@ -204,30 +245,31 @@ const CitySelectionPage = () => {
         {/* Empty State */}
         {!error && availableCities.length === 0 && (
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: 'theme.cardBg',
             borderRadius: '8px',
             padding: '48px',
             textAlign: 'center',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            border: `1px solid ${theme.border}`
           }}>
             <MapPin style={{
               width: '48px',
               height: '48px',
-              color: '#d1d5db',
+              color: theme.text,
               margin: '0 auto 16px'
             }} />
             <h3 style={{
               fontSize: '1.25rem',
               fontWeight: '600',
-              color: '#111827',
+              color: theme.text,
               marginBottom: '8px'
             }}>
               No Cities Available
             </h3>
-            <p style={{ color: '#6b7280', marginBottom: '16px' }}>
+            <p style={{ color: theme.textSecondary, marginBottom: '16px' }}>
               No cities with properties were found in your database.
             </p>
-            <p style={{ color: '#6b7280', fontSize: '14px' }}>
+            <p style={{ color: theme.textSecondary, fontSize: '14px' }}>
               Try adding some properties first, then return to this page.
             </p>
           </div>
@@ -245,6 +287,7 @@ const CitySelectionPage = () => {
                 key={city.name}
                 city={city}
                 onClick={() => handleCitySelect(city)}
+                theme={theme}
               />
             ))}
           </div>
@@ -255,7 +298,7 @@ const CitySelectionPage = () => {
 };
 
 // City Card Component
-const CityCard = ({ city, onClick }) => {
+const CityCard = ({ city, onClick, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -264,12 +307,12 @@ const CityCard = ({ city, onClick }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
-        backgroundColor: 'white',
+        backgroundColor: theme.cardBg,
         borderRadius: '8px',
         boxShadow: isHovered ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         transition: 'all 0.2s',
         cursor: 'pointer',
-        border: isHovered ? '1px solid #93c5fd' : '1px solid #e5e7eb',
+        border: `1px solid ${theme.border}`,
         padding: '24px'
       }}
     >
@@ -282,7 +325,7 @@ const CityCard = ({ city, onClick }) => {
         <h3 style={{
           fontSize: '1.25rem',
           fontWeight: '600',
-          color: isHovered ? '#2563eb' : '#111827',
+          color: isHovered ? '#2563eb' : theme.text,
           transition: 'color 0.2s'
         }}>
           {city.name}
@@ -290,7 +333,7 @@ const CityCard = ({ city, onClick }) => {
         <MapPin style={{
           width: '20px',
           height: '20px',
-          color: isHovered ? '#3b82f6' : '#9ca3af',
+          color: isHovered ? '#3b82f6' : theme.textSecondary,
           transition: 'color 0.2s'
         }} />
       </div>
@@ -302,8 +345,8 @@ const CityCard = ({ city, onClick }) => {
           fontSize: '14px',
           marginBottom: '8px'
         }}>
-          <span style={{ color: '#6b7280' }}>Properties:</span>
-          <span style={{ fontWeight: '500', color: '#111827' }}>{city.propertyCount}</span>
+          <span style={{ color: theme.textSecondary }}>Properties:</span>
+          <span style={{ fontWeight: '500', color: theme.text }}>{city.propertyCount}</span>
         </div>
         <div style={{
           display: 'flex',
@@ -311,23 +354,32 @@ const CityCard = ({ city, onClick }) => {
           fontSize: '14px',
           marginBottom: '8px'
         }}>
-          <span style={{ color: '#6b7280' }}>Avg Income:</span>
-          <span style={{ fontWeight: '500', color: '#059669' }}>£{city.avgIncome.toLocaleString()}/mo</span>
+          <span style={{ color: theme.textSecondary }}>Avg per Room:</span>
+          <span style={{ fontWeight: '500', color: theme.accent }}>£{city.avgIncomePerRoom.toLocaleString()}/mo</span>
         </div>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
+          fontSize: '14px',
+          marginBottom: '8px'
+        }}>
+          <span style={{ color: theme.textSecondary }}>Average Income:</span>
+          <span style={{ fontWeight: '500', color: theme.accent }}>£{city.avgIncome.toLocaleString()}/mo</span>
+        </div>
+        {/*<div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
           fontSize: '14px'
         }}>
-          <span style={{ color: '#6b7280' }}>Total Income:</span>
-          <span style={{ fontWeight: '500', color: '#059669' }}>£{city.totalIncome.toLocaleString()}/mo</span>
-        </div>
+          <span style={{ color: theme.textSecondary }}>Total Income:</span>
+          <span style={{ fontWeight: '500', color: theme.accent }}>£{city.totalIncome.toLocaleString()}/mo</span>
+        </div>*/}
       </div>
       
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        color: isHovered ? '#1d4ed8' : '#2563eb',
+        color: isHovered ? '#1d4ed8' : theme.accent,
         fontSize: '14px',
         fontWeight: '500',
         transition: 'color 0.2s'

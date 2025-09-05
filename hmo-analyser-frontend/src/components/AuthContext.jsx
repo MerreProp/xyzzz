@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   // API base URL
   const API_BASE = process.env.NODE_ENV === 'production' 
     ? '/api' 
-    : 'http://localhost:8000/api';
+    : 'http://localhost:8001/api';
 
   // API request helper with auth
     const apiRequest = async (url, method = 'GET', body = null) => {

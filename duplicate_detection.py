@@ -1,13 +1,19 @@
 # duplicate_detection.py
 # Multi-Factor Duplicate Detection System for Property Analysis
+# ENHANCED WITH PHASE 2 PROXIMITY LOGIC
 
 import re
 import math
 from difflib import SequenceMatcher
+import traceback
 from typing import List, Tuple, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from geopy.distance import geodesic
+import logging
 
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # ================================
 # PYDANTIC MODELS
@@ -20,6 +26,12 @@ class PotentialMatch(BaseModel):
     confidence_score: float
     match_factors: Dict[str, Any]
     property_details: Dict[str, Any]
+    
+    # PHASE 2 ADDITIONS:
+    distance_meters: Optional[float] = None
+    proximity_level: str = "unknown"
+    recommendation: str = "user_choice"
+    recommendation_reason: str = ""
 
 class DuplicateCheckRequest(BaseModel):
     url: str
@@ -39,7 +51,6 @@ def normalize_address(address: str) -> str:
     if not address:
         return ""
     
-    # Convert to lowercase
     normalized = address.lower().strip()
     
     # Remove common prefixes/suffixes
@@ -68,163 +79,157 @@ def normalize_address(address: str) -> str:
     for pattern, replacement in street_replacements.items():
         normalized = re.sub(pattern, replacement, normalized)
     
-    # Remove extra spaces and punctuation
     normalized = re.sub(r'[,\.\-]+', ' ', normalized)
     normalized = re.sub(r'\s+', ' ', normalized)
     
     return normalized.strip()
 
-def extract_postcode(address: str) -> str:
-    """Extract UK postcode from address"""
-    if not address:
-        return ""
-    
-    # UK postcode pattern
-    postcode_pattern = r'[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}'
-    match = re.search(postcode_pattern, address.upper())
-    
-    return match.group(0).replace(' ', '') if match else ""
-
-def extract_house_number(address: str) -> str:
-    """Extract house number from address"""
-    if not address:
-        return ""
-    
-    # Look for number at start of address or after common prefixes
-    number_patterns = [
-        r'^\d+[a-z]?',  # Start with number
-        r'(?:flat|apartment|apt|unit)\s*\d*[a-z]?\s*,?\s*(\d+)',  # After prefix
-    ]
-    
-    for pattern in number_patterns:
-        match = re.search(pattern, address.lower())
-        if match:
-            return match.group(1) if match.lastindex else match.group(0)
-    
-    return ""
-
 # ================================
-# SIMILARITY CALCULATION FUNCTIONS
+# ENHANCED GEOGRAPHIC FUNCTIONS (PHASE 2)
 # ================================
 
-def calculate_address_similarity(addr1: str, addr2: str) -> float:
-    """Calculate similarity between two addresses with strict street matching"""
-    if not addr1 or not addr2:
-        return 0.0
+def calculate_enhanced_geographic_score(
+    existing_lat: Optional[float], 
+    existing_lng: Optional[float],
+    new_lat: Optional[float], 
+    new_lng: Optional[float],
+    existing_address: str = "",
+    new_address: str = ""
+) -> Tuple[float, Dict[str, Any]]:
+    """
+    PHASE 2: Enhanced geographic similarity with real distance calculations
+    """
     
-    norm1 = normalize_address(addr1)
-    norm2 = normalize_address(addr2)
+    # Handle missing coordinates
+    if not all([existing_lat, existing_lng, new_lat, new_lng]):
+        address_sim = SequenceMatcher(None, 
+                                    normalize_address(existing_address), 
+                                    normalize_address(new_address)).ratio()
+        
+        return address_sim * 0.5, {
+            "method": "address_fallback",
+            "distance_meters": None,
+            "proximity_level": "unknown_location",
+            "explanation": "No coordinates available"
+        }
     
-    # FIXED: Extract street names for strict comparison
-    street1 = extract_street_name(addr1)
-    street2 = extract_street_name(addr2)
-    
-    # If we have different street names, heavily penalize the match
-    if street1 and street2 and street1.lower() != street2.lower():
-        # Different streets should get very low scores
-        # Only allow matches if streets are very similar (typos, abbreviations)
-        street_sim = SequenceMatcher(None, street1.lower(), street2.lower()).ratio()
-        if street_sim < 0.8:  # Less than 80% similarity between street names
-            return max(0.0, street_sim * 0.3)  # Cap at 30% for different streets
-    
-    # Use SequenceMatcher for overall similarity
-    similarity = SequenceMatcher(None, norm1, norm2).ratio()
-    
-    # Boost score if postcodes match
-    postcode1 = extract_postcode(addr1)
-    postcode2 = extract_postcode(addr2)
-    
-    if postcode1 and postcode2 and postcode1 == postcode2:
-        similarity = min(1.0, similarity + 0.15)  # Reduced from 0.2 to 0.15
-    
-    # Boost score if house numbers match
-    house1 = extract_house_number(addr1)
-    house2 = extract_house_number(addr2)
-    
-    if house1 and house2 and house1 == house2 and street1 and street2 and street1.lower() == street2.lower():
-        similarity = min(1.0, similarity + 0.2)  # Only boost if same street AND same house number
-    
-    return similarity
-
-def extract_street_name(address: str) -> str:
-    """Extract the street name from an address"""
-    if not address:
-        return ""
-    
-    # Remove common prefixes (flat numbers, etc.)
-    cleaned = re.sub(r'^(flat|apartment|apt|unit|room)\s*\d*[a-z]?\s*,?\s*', '', address.lower())
-    cleaned = re.sub(r'^(floor|fl)\s*\d+\s*,?\s*', '', cleaned)
-    cleaned = re.sub(r'^\d+[a-z]?\s*,?\s*', '', cleaned)  # Remove house numbers
-    
-    # Split by comma and take the first part (should be street name)
-    parts = cleaned.split(',')
-    if parts:
-        street = parts[0].strip()
-        # Remove any remaining numbers at the start
-        street = re.sub(r'^\d+\s*', '', street)
-        return street.strip()
-    
-    return ""
-
-def calculate_price_similarity(price1: Optional[float], price2: Optional[float], tolerance: float = 0.15) -> float:
-    """Calculate price similarity within tolerance range"""
-    if price1 is None or price2 is None or price1 <= 0 or price2 <= 0:
-        return 0.5  # Neutral score when price unavailable
-    
-    # Calculate percentage difference
-    diff = abs(price1 - price2) / max(price1, price2)
-    
-    if diff <= tolerance:
-        # Closer prices get higher scores
-        return 1.0 - (diff / tolerance) * 0.3  # Scale from 1.0 to 0.7
-    else:
-        return 0.3  # Low score for prices outside tolerance
-
-def calculate_geographic_distance(lat1: Optional[float], lon1: Optional[float], 
-                                lat2: Optional[float], lon2: Optional[float]) -> float:
-    """Calculate distance between two coordinates in meters using haversine formula"""
-    if not all([lat1, lon1, lat2, lon2]):
-        return float('inf')
-    
+    # Calculate actual distance using geopy
     try:
-        # Convert latitude and longitude from degrees to radians
-        lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-        
-        # Haversine formula
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-        c = 2 * math.asin(math.sqrt(a))
-        
-        # Radius of earth in meters
-        r = 6371000
-        
-        # Calculate the result
-        distance = c * r
-        return distance
-    except:
-        return float('inf')
-
-def calculate_room_count_similarity(rooms1: Optional[int], rooms2: Optional[int]) -> float:
-    """Calculate room count similarity"""
-    if rooms1 is None or rooms2 is None:
-        return 0.5  # Neutral score when room count unavailable
+        distance_meters = geodesic((existing_lat, existing_lng), (new_lat, new_lng)).meters
+    except Exception as e:
+        logger.warning(f"Distance calculation failed: {e}")
+        return 0.3, {
+            "method": "calculation_error",
+            "distance_meters": None,
+            "proximity_level": "error",
+            "explanation": "Distance calculation failed"
+        }
     
-    if rooms1 == rooms2:
-        return 1.0
-    elif abs(rooms1 - rooms2) == 1:
-        return 0.7  # Close room counts
-    elif abs(rooms1 - rooms2) == 2:
-        return 0.4  # Somewhat different
+    # Enhanced distance-based scoring
+    if distance_meters <= 5:
+        geo_score = 1.0
+        proximity_level = "same_address"
+    elif distance_meters <= 75:
+        geo_score = 0.85
+        proximity_level = "same_block"
+    elif distance_meters <= 150:
+        geo_score = 0.70
+        proximity_level = "same_street"
+    elif distance_meters <= 300:
+        geo_score = 0.50
+        proximity_level = "walking_distance"
+    elif distance_meters <= 500:
+        geo_score = 0.30
+        proximity_level = "same_neighborhood"
+    elif distance_meters <= 1000:
+        geo_score = 0.15
+        proximity_level = "nearby_area"
     else:
-        return 0.1  # Very different
+        geo_score = 0.05
+        proximity_level = "different_area"
+    
+    return geo_score, {
+        "method": "geodesic_calculation",
+        "distance_meters": distance_meters,
+        "proximity_level": proximity_level,
+        "explanation": f"{proximity_level.replace('_', ' ')} ({distance_meters:.0f}m)"
+    }
+
+def apply_proximity_adjustments(
+    base_confidence: float,
+    geo_factors: Dict[str, Any],
+    advertiser_similarity: float
+) -> Tuple[float, Dict[str, Any]]:
+    """
+    PHASE 2: Apply proximity-based confidence adjustments
+    """
+    
+    adjustments = {
+        "base_confidence": base_confidence,
+        "adjustments_applied": []
+    }
+    
+    adjusted_confidence = base_confidence
+    distance = geo_factors.get("distance_meters")
+    
+    if distance is None:
+        return adjusted_confidence, adjustments
+    
+    same_landlord = advertiser_similarity > 0.8
+    
+    # PHASE 1 PROXIMITY LOGIC IMPLEMENTATION:
+    
+    if distance <= 50 and same_landlord:
+        # Very close + same landlord = likely same building, different units
+        boost = 0.15
+        adjusted_confidence = min(adjusted_confidence + boost, 1.0)
+        adjustments["adjustments_applied"].append({
+            "type": "same_building_same_landlord",
+            "boost": boost,
+            "reason": "Same landlord + very close (<50m)"
+        })
+        
+    elif distance <= 100 and same_landlord:
+        # Close + same landlord = possible portfolio properties
+        boost = 0.10
+        adjusted_confidence = min(adjusted_confidence + boost, 1.0)
+        adjustments["adjustments_applied"].append({
+            "type": "portfolio_properties", 
+            "boost": boost,
+            "reason": "Same landlord + close proximity (<100m)"
+        })
+        
+    elif distance <= 20 and not same_landlord:
+        # Very close + different landlord = possibly same building
+        boost = 0.08
+        adjusted_confidence = min(adjusted_confidence + boost, 1.0)
+        adjustments["adjustments_applied"].append({
+            "type": "same_building_different_landlord",
+            "boost": boost,
+            "reason": "Very close (<20m) despite different landlords"
+        })
+        
+    elif distance >= 500:
+        # Far apart = less likely to be duplicate
+        penalty = 0.10
+        adjusted_confidence = max(adjusted_confidence - penalty, 0)
+        adjustments["adjustments_applied"].append({
+            "type": "distance_penalty",
+            "penalty": penalty,
+            "reason": f"Properties far apart ({distance:.0f}m)"
+        })
+    
+    adjustments["final_confidence"] = adjusted_confidence
+    adjustments["total_adjustment"] = adjusted_confidence - base_confidence
+    
+    return adjusted_confidence, adjustments
 
 # ================================
-# MULTI-FACTOR DETECTION FUNCTION
+# ENHANCED CONFIDENCE CALCULATION (PHASE 2)
 # ================================
 
-def calculate_duplicate_confidence(
-    existing_property: Dict[str, Any],
+def calculate_multi_factor_confidence_score(
+    existing_property: Dict,
     new_address: str,
     new_latitude: Optional[float] = None,
     new_longitude: Optional[float] = None,
@@ -233,44 +238,30 @@ def calculate_duplicate_confidence(
     new_advertiser: Optional[str] = None
 ) -> Tuple[float, Dict[str, Any]]:
     """
-    Calculate confidence score for potential duplicate using multi-factor analysis
-    Returns (confidence_score, match_factors)
+    PHASE 2: Enhanced multi-factor confidence scoring with proximity logic
     """
     
     factors = {}
     
-    # 1. Address Similarity (Primary Factor - INCREASED to 50% weight)
-    address_sim = calculate_address_similarity(existing_property.get('address', ''), new_address)
+    # 1. Address Similarity (40% weight - reduced for geographic)
+    existing_address = existing_property.get('address', '')
+    address_sim = SequenceMatcher(None, 
+                                 normalize_address(existing_address), 
+                                 normalize_address(new_address)).ratio()
     factors['address_similarity'] = address_sim
     
-    # FIXED: If address similarity is very low, don't bother with other factors
-    if address_sim < 0.3:
-        factors['geographic_distance_m'] = None
-        factors['geographic_similarity'] = 0.0
-        factors['price_similarity'] = 0.5
-        factors['room_count_similarity'] = 0.5
-        factors['advertiser_similarity'] = 0.5
-        
-        # Return very low confidence for different addresses
-        return address_sim * 0.5, factors
+    # 2. ENHANCED Geographic Proximity (30% weight - increased)
+    existing_lat = existing_property.get('latitude')
+    existing_lng = existing_property.get('longitude')
     
-    # 2. Geographic Distance (Reduced to 20% weight)  
-    distance = calculate_geographic_distance(
-        existing_property.get('latitude'), existing_property.get('longitude'),
-        new_latitude, new_longitude
+    geo_score, geo_factors = calculate_enhanced_geographic_score(
+        existing_lat, existing_lng, new_latitude, new_longitude,
+        existing_address, new_address
     )
-    
-    if distance == float('inf'):
-        geo_score = 0.5  # Neutral when coordinates unavailable
-    else:
-        # FIXED: More strict distance requirements
-        # Within 50m = 1.0, beyond 200m = 0.0 (reduced from 500m)
-        geo_score = max(0.0, 1.0 - (distance / 200))
-    
-    factors['geographic_distance_m'] = distance if distance != float('inf') else None
+    factors.update(geo_factors)
     factors['geographic_similarity'] = geo_score
     
-    # 3. Price Similarity (15% weight - unchanged)
+    # 3. Price Similarity (15% weight)
     existing_price = None
     if existing_property.get('latest_analysis'):
         existing_price = existing_property['latest_analysis'].get('monthly_income')
@@ -280,7 +271,7 @@ def calculate_duplicate_confidence(
     factors['existing_price'] = existing_price
     factors['new_price'] = new_price
     
-    # 4. Room Count Similarity (10% weight - reduced from 15%)
+    # 4. Room Count Similarity (10% weight)
     existing_rooms = None
     if existing_property.get('latest_analysis'):
         existing_rooms = existing_property['latest_analysis'].get('total_rooms')
@@ -290,33 +281,122 @@ def calculate_duplicate_confidence(
     factors['existing_rooms'] = existing_rooms
     factors['new_rooms'] = new_room_count
     
-    # 5. Advertiser/Landlord Similarity (5% weight - unchanged)
-    advertiser_sim = 0.5  # Default neutral score
+    # 5. Advertiser Similarity (5% weight)
+    advertiser_sim = 0.5
     if new_advertiser and existing_property.get('latest_analysis', {}).get('advertiser_name'):
         existing_advertiser = existing_property['latest_analysis']['advertiser_name']
         if new_advertiser.lower() == existing_advertiser.lower():
             advertiser_sim = 1.0
         else:
-            # Check for partial matches
             advertiser_sim = SequenceMatcher(None, 
                                            new_advertiser.lower(), 
                                            existing_advertiser.lower()).ratio()
     
     factors['advertiser_similarity'] = advertiser_sim
     
-    # FIXED: Updated weighted confidence score with new weights
-    confidence = (
-        address_sim * 0.50 +      # INCREASED: Address similarity (primary)
-        geo_score * 0.20 +        # REDUCED: Geographic proximity  
-        price_sim * 0.15 +        # UNCHANGED: Price similarity
-        room_sim * 0.10 +         # REDUCED: Room count similarity
-        advertiser_sim * 0.05     # UNCHANGED: Advertiser similarity
+    # Calculate base confidence
+    base_confidence = (
+        address_sim * 0.40 +
+        geo_score * 0.30 +
+        price_sim * 0.15 +
+        room_sim * 0.10 +
+        advertiser_sim * 0.05
     )
     
-    return confidence, factors
+    # PHASE 2: Apply proximity adjustments
+    final_confidence, proximity_adjustments = apply_proximity_adjustments(
+        base_confidence, geo_factors, advertiser_sim
+    )
+    
+    # Add proximity adjustment details to factors
+    factors['proximity_adjustments'] = proximity_adjustments
+    factors['base_confidence'] = base_confidence
+    factors['final_confidence'] = final_confidence
+    
+    return final_confidence, factors
+
+def generate_recommendation(confidence: float, factors: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    PHASE 2: Generate recommendation based on confidence and factors
+    """
+    
+    distance = factors.get("distance_meters")
+    proximity_level = factors.get("proximity_level", "unknown")
+    
+    # High confidence
+    if confidence >= 0.85:
+        if distance and distance <= 50:
+            return "auto_link", f"High confidence ({confidence:.0%}) + very close"
+        else:
+            return "user_choice", f"High confidence ({confidence:.0%}) - review distance"
+    
+    # Medium-high confidence
+    elif confidence >= 0.70:
+        if any(adj.get("type") == "portfolio_properties" 
+               for adj in factors.get("proximity_adjustments", {}).get("adjustments_applied", [])):
+            return "user_choice", "Likely landlord portfolio"
+        elif distance and distance <= 25:
+            return "user_choice", "Very close - likely same property"
+        else:
+            return "user_choice", f"Medium-high confidence ({confidence:.0%})"
+    
+    # Medium confidence
+    elif confidence >= 0.50:
+        return "user_choice", f"Medium confidence ({confidence:.0%}) - needs review"
+    
+    # Low confidence
+    else:
+        return "separate", f"Low confidence ({confidence:.0%})"
 
 # ================================
-# MAIN DUPLICATE DETECTION FUNCTION
+# UTILITY FUNCTIONS
+# ================================
+
+def calculate_price_similarity(existing_price: Optional[float], new_price: Optional[float]) -> float:
+    """Calculate price similarity between two properties"""
+    if not existing_price or not new_price:
+        return 0.5
+    
+    price_diff = abs(existing_price - new_price)
+    max_price = max(existing_price, new_price)
+    
+    if max_price == 0:
+        return 1.0 if existing_price == new_price else 0
+    
+    percentage_diff = price_diff / max_price
+    
+    if percentage_diff <= 0.05:
+        return 1.0
+    elif percentage_diff <= 0.15:
+        return 0.8
+    elif percentage_diff <= 0.30:
+        return 0.6
+    elif percentage_diff <= 0.50:
+        return 0.4
+    else:
+        return 0.1
+
+def calculate_room_count_similarity(existing_rooms: Optional[int], new_rooms: Optional[int]) -> float:
+    """Calculate room count similarity"""
+    if not existing_rooms or not new_rooms:
+        return 0.5
+    
+    if existing_rooms == new_rooms:
+        return 1.0
+    
+    diff = abs(existing_rooms - new_rooms)
+    
+    if diff == 1:
+        return 0.8
+    elif diff <= 2:
+        return 0.6
+    elif diff <= 3:
+        return 0.4
+    else:
+        return 0.2
+
+# ================================
+# MAIN DUPLICATE DETECTION FUNCTION (ENHANCED)
 # ================================
 
 def find_potential_duplicates(
@@ -333,145 +413,384 @@ def find_potential_duplicates(
 ) -> List[PotentialMatch]:
     """
     Find potential duplicate properties in the database
-    
-    Args:
-        db: Database session
-        new_url: URL of the new property
-        new_address: Address of the new property
-        new_latitude: Latitude of the new property (optional)
-        new_longitude: Longitude of the new property (optional)
-        new_price: Monthly price of the new property (optional)
-        new_room_count: Number of rooms in the new property (optional)
-        new_advertiser: Advertiser name for the new property (optional)
-        min_confidence: Minimum confidence score to include in results
-        max_results: Maximum number of matches to return
-    
-    Returns:
-        List of potential matches sorted by confidence score
     """
     
-    # Import models and CRUD here to avoid circular imports
-    from models import Property
-    from crud import AnalysisCRUD
+    logger.info(f"🔍 Enhanced duplicate detection for: {new_address}")
+    if new_latitude and new_longitude:
+        logger.info(f"📍 Coordinates: {new_latitude:.6f}, {new_longitude:.6f}")
     
-    # Get all existing properties for comparison
-    # For efficiency in large databases, you could add filtering by postcode/area here
-    existing_properties_query = (db.query(Property)
-                               .filter(Property.address.isnot(None))
-                               .all())
+    # Get all properties for comparison
+    all_properties = get_all_properties_with_latest_analysis(db)
     
     potential_matches = []
     
-    for existing_prop in existing_properties_query:
-        # Skip if same URL
-        if existing_prop.url == new_url:
+    for existing_property in all_properties:
+        if existing_property.url == new_url:
             continue
         
-        # Get latest analysis for this property
-        latest_analysis = AnalysisCRUD.get_latest_analysis(db, existing_prop.id)
-        
-        # Prepare existing property data
-        existing_data = {
-            'address': existing_prop.address,
-            'latitude': existing_prop.latitude,
-            'longitude': existing_prop.longitude,
-            'latest_analysis': {}
+        # 🔧 FIX: Properly format the existing property data
+        existing_property_dict = {
+            'id': existing_property.id,
+            'address': existing_property.address,
+            'latitude': existing_property.latitude,
+            'longitude': existing_property.longitude,
+            'url': existing_property.url,
+            'latest_analysis': existing_property.latest_analysis  # ✅ This is already a dict
         }
         
-        if latest_analysis:
-            existing_data['latest_analysis'] = {
-                'monthly_income': latest_analysis.monthly_income,
-                'total_rooms': latest_analysis.total_rooms,
-                'advertiser_name': latest_analysis.advertiser_name
-            }
-        
-        # Calculate confidence score
-        confidence, factors = calculate_duplicate_confidence(
-            existing_data,
-            new_address,
-            new_latitude,
-            new_longitude, 
-            new_price,
-            new_room_count,
-            new_advertiser
+        # Calculate enhanced confidence
+        confidence, factors = calculate_multi_factor_confidence_score(
+            existing_property=existing_property_dict,  # ✅ FIXED: Pass properly formatted dict
+            new_address=new_address,
+            new_latitude=new_latitude,
+            new_longitude=new_longitude,
+            new_price=new_price,
+            new_room_count=new_room_count,
+            new_advertiser=new_advertiser
         )
         
-        # Only include matches above minimum threshold
         if confidence >= min_confidence:
-            potential_matches.append(PotentialMatch(
-                property_id=str(existing_prop.id),
-                existing_url=existing_prop.url,
-                address=existing_prop.address,
+            # Generate recommendation
+            recommendation, reason = generate_recommendation(confidence, factors)
+            
+            potential_match = PotentialMatch(
+                property_id=str(existing_property.id),
+                existing_url=existing_property.url,
+                address=existing_property.address or "Unknown",
                 confidence_score=round(confidence, 3),
                 match_factors=factors,
                 property_details={
-                    'monthly_income': existing_data['latest_analysis'].get('monthly_income'),
-                    'total_rooms': existing_data['latest_analysis'].get('total_rooms'),
-                    'advertiser_name': existing_data['latest_analysis'].get('advertiser_name'),
-                    'created_at': existing_prop.created_at.isoformat() if existing_prop.created_at else None
-                }
-            ))
+                    'monthly_income': existing_property.latest_analysis['monthly_income'] if existing_property.latest_analysis else None,
+                    'total_rooms': existing_property.latest_analysis['total_rooms'] if existing_property.latest_analysis else None,
+                    'advertiser_name': existing_property.latest_analysis['advertiser_name'] if existing_property.latest_analysis else None,
+                    'created_at': existing_property.created_at.isoformat() if existing_property.created_at else None
+                },
+                distance_meters=factors.get("distance_meters"),
+                proximity_level=factors.get("proximity_level", "unknown"),
+                recommendation=recommendation,
+                recommendation_reason=reason
+            )
+            
+            potential_matches.append(potential_match)
+            
+            logger.info(f"📊 Match: {existing_property.address}")
+            logger.info(f"   Confidence: {confidence:.1%}")
+            logger.info(f"   Distance: {factors.get('distance_meters', 'Unknown')}m")
+            logger.info(f"   Recommendation: {recommendation}")
     
-    # Sort by confidence score (highest first)
+    # Sort by confidence
     potential_matches.sort(key=lambda x: x.confidence_score, reverse=True)
     
-    # Limit results
+    logger.info(f"✅ Found {len(potential_matches)} matches above {min_confidence:.0%}")
+    
     return potential_matches[:max_results]
 
+def check_for_duplicates_enhanced(db: Session, url: str) -> DuplicateCheckResponse:
+    """Enhanced duplicate detection with proper error handling"""
+    
+    try:
+        # Extract property details for duplicate checking
+        extracted_details = extract_property_details_for_duplicate_check(url)
+        
+        if not extracted_details:
+            logger.warning("❌ Could not extract property details for duplicate checking")
+            return DuplicateCheckResponse(
+                has_potential_duplicates=False,
+                potential_matches=[],
+                extracted_address=None,
+                extraction_successful=False
+            )
+        
+        address = extracted_details.get('address', '')
+        latitude = extracted_details.get('latitude')
+        longitude = extracted_details.get('longitude')
+        monthly_income = extracted_details.get('monthly_income')
+        total_rooms = extracted_details.get('total_rooms')
+        advertiser_name = extracted_details.get('advertiser_name')
+        
+        # Find potential duplicates with error handling
+        potential_matches = find_potential_duplicates(
+            db=db,
+            new_url=url,
+            new_address=address,
+            new_latitude=latitude,
+            new_longitude=longitude,
+            new_price=monthly_income,
+            new_room_count=total_rooms,
+            new_advertiser=advertiser_name,
+            min_confidence=0.3,
+            max_results=5
+        )
+        
+        return DuplicateCheckResponse(
+            has_potential_duplicates=len(potential_matches) > 0,
+            potential_matches=potential_matches,
+            extracted_address=address,
+            extraction_successful=True
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Duplicate detection failed: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        # Return a safe response when duplicate detection fails
+        return DuplicateCheckResponse(
+            has_potential_duplicates=False,  # ⚠️  Conservative: assume no duplicates on error
+            potential_matches=[],
+            extracted_address=None,
+            extraction_successful=False
+        )
+
 # ================================
-# UTILITY FUNCTIONS
+# DATABASE UTILITY FUNCTIONS
 # ================================
+
+def get_all_properties_with_latest_analysis(db: Session):
+    """Get all properties with their latest analysis data"""
+    from sqlalchemy import text
+    
+    # This query gets properties with their latest analysis
+    query = text("""
+        SELECT DISTINCT ON (p.id) 
+            p.*,
+            pa.monthly_income,
+            pa.total_rooms,
+            pa.advertiser_name,
+            pa.created_at as analysis_date
+        FROM properties p
+        LEFT JOIN property_analyses pa ON p.id = pa.property_id
+        ORDER BY p.id, pa.created_at DESC
+    """)
+    
+    result = db.execute(query).fetchall()
+    
+    # Convert to objects with latest_analysis attribute
+    properties = []
+    for row in result:
+        prop_data = dict(row._mapping)
+        
+        # Create latest_analysis dict
+        latest_analysis = None
+        if prop_data.get('monthly_income') is not None:
+            latest_analysis = {
+                'monthly_income': float(prop_data['monthly_income']) if prop_data['monthly_income'] else None,
+                'total_rooms': prop_data['total_rooms'],
+                'advertiser_name': prop_data['advertiser_name']
+            }
+        
+        # Create property-like object
+        class PropertyWithAnalysis:
+            def __init__(self, data, analysis):
+                for key, value in data.items():
+                    if key not in ['monthly_income', 'total_rooms', 'advertiser_name', 'analysis_date']:
+                        setattr(self, key, value)
+                self.latest_analysis = analysis
+        
+        properties.append(PropertyWithAnalysis(prop_data, latest_analysis))
+    
+    return properties
 
 def extract_property_details_for_duplicate_check(url: str) -> Dict[str, Any]:
     """
-    Extract property details from URL for duplicate checking
-    This function should use your existing property extraction logic
+    ENHANCED: Extract property details from URL for duplicate checking
+    This is the FIXED version that properly packages extracted data
     """
     try:
-        # Import your existing extraction functions
-        from modules.coordinates import extract_property_details, extract_coordinates, reverse_geocode_nominatim
+        # Import required functions with better error handling
+        try:
+            from modules.coordinates import extract_property_details, extract_coordinates, reverse_geocode_nominatim
+        except ImportError as e:
+            logger.warning(f"⚠️ Import error in duplicate check: {e}")
+            # Still try to continue with available functions
+            try:
+                from modules.coordinates import extract_coordinates
+                logger.info("✅ At least coordinate extraction available")
+            except ImportError:
+                logger.error("❌ No coordinate extraction modules available")
+                return {}
         
-        # Create an empty analysis_data dictionary for the extraction
+        # Create analysis data container
         analysis_data = {}
         
-        # Step 1: Get coordinates first
-        coords_result = extract_coordinates(url, analysis_data)
+        # Step 1: Extract coordinates (this is working in your logs)
+        try:
+            coords_result = extract_coordinates(url, analysis_data)
+            logger.info(f"🎯 Coordinates extracted: {coords_result}")
+            
+            # CRITICAL FIX: Ensure coordinates get into analysis_data
+            if coords_result and coords_result.get('found'):
+                if 'latitude' not in analysis_data and coords_result.get('latitude'):
+                    analysis_data['latitude'] = coords_result['latitude']
+                if 'longitude' not in analysis_data and coords_result.get('longitude'):
+                    analysis_data['longitude'] = coords_result['longitude']
+                logger.info(f"📍 Coordinates added to analysis_data: {analysis_data.get('latitude')}, {analysis_data.get('longitude')}")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Coordinate extraction failed: {e}")
+            coords_result = {}
         
-        # Step 2: Get property details
-        extracted_data = extract_property_details(url, analysis_data)
+        # Step 2: Extract property details (if available)
+        extracted_data = {}
+        try:
+            if 'extract_property_details' in locals():
+                extracted_data = extract_property_details(url, analysis_data)
+                logger.info(f"🏠 Property details extracted: {bool(extracted_data)}")
+        except Exception as e:
+            logger.warning(f"⚠️ Property detail extraction failed: {e}")
+            extracted_data = {}
         
-        # Step 3: If we have coordinates but no address, try reverse geocoding (like main analysis does)
-        if coords_result.get('found') and not analysis_data.get('Full Address'):
-            lat, lon = coords_result['latitude'], coords_result['longitude']
-            print(f"🔍 Reverse geocoding coordinates for duplicate check: {lat}, {lon}")
-            reverse_geocode_nominatim(lat, lon, analysis_data)
+        # Step 3: CRITICAL FIX - Properly compile all available data
+        # Get coordinates from ANY source
+        latitude = (
+            analysis_data.get('latitude') or 
+            coords_result.get('latitude') or 
+            extracted_data.get('latitude')
+        )
+        longitude = (
+            analysis_data.get('longitude') or 
+            coords_result.get('longitude') or 
+            extracted_data.get('longitude')
+        )
         
-        # Combine all coordinate sources
-        latitude = extracted_data.get('latitude') or coords_result.get('latitude')
-        longitude = extracted_data.get('longitude') or coords_result.get('longitude')
+        # Get address from ANY source
+        address = (
+            analysis_data.get('Full Address') or 
+            analysis_data.get('address') or 
+            extracted_data.get('address') or
+            analysis_data.get('normalized_address')  # From your logs
+        )
         
-        # The function should now have populated analysis_data with useful information
-        # Let's check both sources for the data we need
+        # Get financial data
+        monthly_income = (
+            analysis_data.get('Monthly Income') or 
+            analysis_data.get('monthly_income') or
+            extracted_data.get('monthly_income')
+        )
+        
+        # Get room count
+        total_rooms = (
+            analysis_data.get('Total Rooms') or 
+            analysis_data.get('total_rooms') or
+            extracted_data.get('total_rooms')
+        )
+        
+        # Get advertiser info
+        advertiser_name = (
+            analysis_data.get('Advertiser') or 
+            analysis_data.get('advertiser_name') or 
+            extracted_data.get('advertiser_name')
+        )
+        
+        # Step 4: Try reverse geocoding if we have coords but no address
+        if latitude and longitude and not address:
+            try:
+                logger.info(f"🔄 Attempting reverse geocoding for {latitude}, {longitude}")
+                if 'reverse_geocode_nominatim' in locals():
+                    geocoded_data = reverse_geocode_nominatim(latitude, longitude)
+                    if geocoded_data and geocoded_data.get('address'):
+                        address = geocoded_data['address']
+                        logger.info(f"📍 Reverse geocoded address: {address}")
+            except Exception as e:
+                logger.warning(f"⚠️ Reverse geocoding failed: {e}")
+        
+        # Step 5: CRITICAL - Build the result dictionary
         result = {
-            'address': analysis_data.get('Full Address') or analysis_data.get('address') or extracted_data.get('address'),
-            'latitude': latitude,
-            'longitude': longitude,
-            'monthly_income': analysis_data.get('Monthly Income') or extracted_data.get('monthly_income'),
-            'total_rooms': analysis_data.get('Total Rooms') or extracted_data.get('total_rooms'),
-            'advertiser_name': analysis_data.get('Advertiser') or analysis_data.get('advertiser_name') or extracted_data.get('advertiser_name')
+            'address': address,
+            'latitude': float(latitude) if latitude else None,
+            'longitude': float(longitude) if longitude else None,
+            'monthly_income': float(monthly_income) if monthly_income else None,
+            'total_rooms': int(total_rooms) if total_rooms else None,
+            'advertiser_name': advertiser_name
         }
         
-        # Debug: Print what we extracted for troubleshooting
-        if result.get('address') or result.get('latitude'):
-            print(f"✅ Extracted for duplicate check: Address={result.get('address')}, Coords=({result.get('latitude')}, {result.get('longitude')})")
+        # Step 6: Enhanced logging for debugging
+        success_indicators = []
+        if result.get('address'):
+            success_indicators.append(f"Address: {result['address']}")
+        if result.get('latitude') and result.get('longitude'):
+            success_indicators.append(f"Coordinates: ({result['latitude']}, {result['longitude']})")
+        if result.get('monthly_income'):
+            success_indicators.append(f"Income: £{result['monthly_income']}")
+        if result.get('total_rooms'):
+            success_indicators.append(f"Rooms: {result['total_rooms']}")
+        if result.get('advertiser_name'):
+            success_indicators.append(f"Advertiser: {result['advertiser_name']}")
+        
+        if success_indicators:
+            logger.info(f"✅ Duplicate check extraction SUCCESSFUL:")
+            for indicator in success_indicators:
+                logger.info(f"   {indicator}")
         else:
-            print(f"⚠️ Limited extraction: analysis_data keys = {list(analysis_data.keys())}")
+            logger.warning(f"⚠️ Duplicate check extraction returned minimal data")
+            logger.warning(f"   Analysis data keys: {list(analysis_data.keys())}")
+            logger.warning(f"   Coords result: {coords_result}")
+            logger.warning(f"   Extracted data keys: {list(extracted_data.keys()) if extracted_data else 'None'}")
         
         return result
         
     except Exception as e:
-        print(f"Error extracting property details for duplicate check: {str(e)}")
-        # Print more detailed error info for debugging
+        logger.error(f"❌ CRITICAL ERROR in duplicate check extraction: {str(e)}")
         import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return {}
+    
+
+def test_duplicate_detection_fix():
+    """Test the fixed duplicate detection"""
+    
+    print("🧪 Testing Enhanced Duplicate Detection Fix...")
+    
+    # Test with a sample URL (replace with your actual URL format)
+    test_url = "https://www.spareroom.co.uk/flatshare/flatshare_detail.pl?flatshare_id=15772628"
+    
+    print(f"🔍 Testing extraction with: {test_url}")
+    
+    try:
+        result = extract_property_details_for_duplicate_check(test_url)
+        
+        print(f"📊 Extraction Result:")
+        if result:
+            for key, value in result.items():
+                if value is not None:
+                    print(f"   ✅ {key}: {value}")
+                else:
+                    print(f"   ❌ {key}: None")
+        else:
+            print("   ❌ No data extracted")
+        
+        # Success criteria
+        has_coordinates = result.get('latitude') and result.get('longitude')
+        has_address = bool(result.get('address'))
+        
+        if has_coordinates or has_address:
+            print("\n✅ SUCCESS: Duplicate detection should now work!")
+            return True
+        else:
+            print("\n❌ FAILURE: Still not extracting essential data")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Test failed with error: {e}")
+        return False
+
+if __name__ == "__main__":
+    print("🔧 Enhanced Duplicate Detection Fix")
+    print("=" * 50)
+    
+    print("This fix addresses:")
+    print("✅ Property details extraction failures")
+    print("✅ Coordinate data not being passed to duplicate detection") 
+    print("✅ Missing import error handling")
+    print("✅ Better logging for debugging")
+    
+    print("\n🧪 Running test...")
+    success = test_duplicate_detection_fix()
+    
+    if success:
+        print("\n🎉 Fix appears to be working!")
+        print("\nNext steps:")
+        print("1. Replace the function in your duplicate_detection.py")
+        print("2. Test with a real property URL") 
+        print("3. Verify duplicate detection now works")
+    else:
+        print("\n⚠️ Fix needs more work - check the logs above")

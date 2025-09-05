@@ -1,5 +1,8 @@
 {
     "python.analysis.extraPaths": [
-        "./hmo-analyser-frontend/src/components"
-    ]
+        "./hmo-analyser-frontend/src/components",
+        "./modules"
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
 }

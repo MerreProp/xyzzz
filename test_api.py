@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 
 # API base URL
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 
 def test_health_check():
     """Test the health check endpoint"""

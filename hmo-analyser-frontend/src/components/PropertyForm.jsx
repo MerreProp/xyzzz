@@ -1,9 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Plus, AlertCircle, Activity } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { useDarkMode } from '../contexts/DarkModeContext';
 
 const PropertyForm = ({ onSubmit, isLoading, analysisResult, analysisError }) => {
   const [url, setUrl] = useState('');
   const [notification, setNotification] = useState(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const { currentPalette } = useTheme();
+  const { isDarkMode } = useDarkMode();
+
+  const baseColors = {
+    darkSlate: '#2C3E4A',
+    lightCream: '#F5F1E8',
+    softGray: '#A8A5A0',
+  };
+
+  const theme = isDarkMode ? {
+    cardBg: '#2c3e4a',
+    text: baseColors.lightCream,
+    textSecondary: '#9ca3af',
+    border: 'rgba(180, 180, 180, 0.2)',
+  } : {
+    cardBg: '#ffffff',
+    text: baseColors.darkSlate,
+    textSecondary: baseColors.softGray,
+    border: 'rgba(168, 165, 160, 0.3)',
+  };
+
 
   // Clear the form when analysis is completed OR failed
   useEffect(() => {
@@ -11,7 +35,7 @@ const PropertyForm = ({ onSubmit, isLoading, analysisResult, analysisError }) =>
       setUrl('');
       setHasSubmitted(false);
       // Clear notification after a delay
-      setTimeout(() => setNotification(null), 5000);
+      setTimeout(() => setNotification(null), 10000);
     }
   }, [analysisResult, hasSubmitted]);
 
@@ -47,7 +71,7 @@ const PropertyForm = ({ onSubmit, isLoading, analysisResult, analysisError }) =>
       setTimeout(() => {
         setUrl('');
         setHasSubmitted(false);
-      }, 2000); // Small delay to let user see the result
+      }, 4000); // Small delay to let user see the result
       wasLoading.current = false;
     }
   }, [isLoading, hasSubmitted]);
@@ -254,7 +278,12 @@ const PropertyForm = ({ onSubmit, isLoading, analysisResult, analysisError }) =>
   };
 
   return (
-    <div className="card">
+    <div style={{
+      backgroundColor: theme.cardBg,
+      border: `1px solid ${theme.border}`,
+      borderRadius: '12px',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+    }}>
       <style>
         {`
           @keyframes fadeIn {
@@ -273,14 +302,33 @@ const PropertyForm = ({ onSubmit, isLoading, analysisResult, analysisError }) =>
         `}
       </style>
       
-      <div className="card-header">
-        <h3 className="card-title">🏠 Analyze SpareRoom Property</h3>
-        <p className="card-subtitle">
+      <div style={{
+        padding: '1.5rem',
+        borderBottom: `1px solid ${theme.border}`
+      }}>
+        <h3 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: theme.text,
+          margin: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '0.5rem'
+        }}>
+          <Plus size={18} style={{ color: currentPalette.primary }} />
+          Analyze SpareRoom Property
+        </h3>
+        <p style={{
+          fontSize: '0.875rem',
+          color: theme.textSecondary,
+          margin: 0
+        }}>
           Enter a SpareRoom URL to analyze HMO investment potential
         </p>
       </div>
 
-      <div style={{ marginBottom: '1rem' }}>
+      <div style={{ padding: '1.5rem' }}>
         <div style={{ marginBottom: '1rem' }}>
           <label 
             htmlFor="property-url" 
@@ -365,17 +413,6 @@ const PropertyForm = ({ onSubmit, isLoading, analysisResult, analysisError }) =>
 
       {renderNotification()}
 
-      <div style={{ 
-        fontSize: '0.875rem', 
-        color: '#6b7280',
-        borderTop: '1px solid #e5e7eb',
-        paddingTop: '1rem'
-      }}>
-        <p style={{ margin: 0 }}>
-          <strong>Tip:</strong> The system will automatically detect if this property has been analyzed before 
-          and show you the analysis history along with any changes detected over time.
-        </p>
-      </div>
       
       <style>
         {`

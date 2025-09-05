@@ -1,0 +1,15 @@
+{
+  "backup_name": "backup_before_phase1_migration_20250811_201528",
+  "created_at": "2025-08-11T20:15:30.658104",
+  "database_type": "postgresql",
+  "database_url": "postgresql://postgres:JnLGRNCVebqsmYrSJjZLTlASryNSumav@[HIDDEN]",
+  "backup_files": [
+    "database_backups/backup_before_phase1_migration_20250811_201528_data.json"
+  ],
+  "backup_purpose": "Phase 1 Migration - Enhanced Duplicate Detection",
+  "restore_instructions": {
+    "method_1": "pg_restore --clean --create --verbose backup_file.backup",
+    "method_2": "psql -f backup_dump.sql database_name",
+    "notes": "Ensure PostgreSQL is running and you have appropriate permissions"
+  }
+}

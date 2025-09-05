@@ -64,6 +64,8 @@ class Property(Base):
 
     # ADD THIS - Relationship to additional URLs
     urls = relationship("PropertyURL", back_populates="property", cascade="all, delete-orphan")
+
+    duplicate_decisions = relationship("DuplicateDecision", back_populates="property")
     
     # NEW: Enhanced UK location fields
     city = Column(String(100), index=True)          # Actual city/town (e.g., "Bicester", "Banbury")
@@ -342,6 +344,12 @@ class Room(Base):
         uselist=False,
         overlaps="availability_periods"  # Avoid relationship conflicts
     )
+
+    # 🆕 PHASE 5 additions:
+    source_url = Column(Text, nullable=True)
+    url_confidence = Column(Float, default=1.0)
+    linked_room_id = Column(String(50), nullable=True)
+    is_primary_instance = Column(Boolean, default=True)
     # Update the Property model to include the rooms relationship
 # Add this line to your existing Property class:
 # rooms = relationship("Room", back_populates="property", cascade="all, delete-orphan")
@@ -666,6 +674,27 @@ class PropertyURL(Base):
     
     # Relationship
     property = relationship("Property", back_populates="urls")
+
+    # 🆕 PHASE 5 additions:
+    distance_meters = Column(Float, nullable=True)
+    proximity_level = Column(String(50), nullable=True)
+    linked_by = Column(String(20), default='system')
+    user_confirmed = Column(Boolean, default=False)
+
+
+class DuplicateDecision(Base):
+    __tablename__ = "duplicate_decisions"
+    
+    id = Column(String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    new_url = Column(Text, nullable=False)
+    existing_property_id = Column(String(50), ForeignKey("properties.id"), nullable=False)
+    confidence_score = Column(Float, nullable=False)
+    distance_meters = Column(Float, nullable=True)
+    user_decision = Column(String(20), nullable=False)
+    decided_at = Column(DateTime, default=datetime.utcnow)
+    match_factors = Column(JSON, nullable=True)
+    
+    property = relationship("Property", back_populates="duplicate_decisions")
 
 
 

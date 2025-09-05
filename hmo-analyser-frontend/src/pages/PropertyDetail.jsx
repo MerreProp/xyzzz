@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ResultsCard from '../components/ResultsCard';
 import { propertyApi } from '../utils/api';
 import Phase2Analytics from '../components/Phase2Analytics';
@@ -10,6 +10,7 @@ import AvailabilityHeatmap from '../components/AvailabilityHeatmap';
 const PropertyDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showChanges, setShowChanges] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -77,6 +78,13 @@ const PropertyDetail = () => {
       // Show success message
       alert('✅ Property deleted successfully!');
       
+      // ADDED: Cache invalidation before navigation
+      await queryClient.invalidateQueries({ queryKey: ['properties'] }); // History page query
+      await queryClient.invalidateQueries({ queryKey: ['property'] }); // Individual property queries
+      
+      // ADDED: Remove the specific property from cache immediately
+      queryClient.removeQueries({ queryKey: ['property', id] });
+      
       // Navigate back to history page
       navigate('/history');
       
@@ -128,8 +136,10 @@ const PropertyDetail = () => {
       
       alert('✅ Property update started!\n\nThe analysis is running in the background. Refresh the page in a few moments to see any changes.');
       
-      // Optionally refresh the page after a delay
-      setTimeout(() => {
+      // CHANGED: Added cache invalidation
+      setTimeout(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['properties'] });
+        await queryClient.invalidateQueries({ queryKey: ['property', id] });
         window.location.reload();
       }, 3000);
       

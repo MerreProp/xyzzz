@@ -1,0 +1,1399 @@
+case_number,raw_address,cleaned_address,licence_holder,postcode,latitude,longitude,geocoded,quality_score
+SWD0001_0311,"Flat
+133 - 135 Manchester Road
+Swindon
+SN1 2AF",Flat 133 - 135 Manchester Road Swindon SN1 2AF,Masala Bazaar Swindon Ltd. (Co. Rgn. No. 11021853),SN1 2AF,51.565146,-1.779658,True,0.9999999999999999
+SWD0002_1248,"150 County Road
+Swindon
+Wiltshire
+SN1 2DY",150 County Road Swindon Wiltshire SN1 2DY,Cinis One Ltd (CRN 09840730),SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0003_5305,"117 Groundwell Road
+Swindon
+SN1 2NA",117 Groundwell Road Swindon SN1 2NA,Cinis One Ltd (Co. Reg. No.: 09840730),SN1 2NA,51.559516,-1.773959,True,0.9999999999999999
+SWD0004_9317,"101 Faringdon Road
+Swindon
+Wiltshire",101 Faringdon Road Swindon Wiltshire,Mr Jason Kirton,,,,False,0.4
+SWD0005_9734,"47 Victoria Road
+Old Town
+Swindon
+SN1 3AY",47 Victoria Road Old Town Swindon SN1 3AY,Mr Michael Kalupa,SN1 3AY,51.555828,-1.778102,True,0.9999999999999999
+SWD0006_5281,"57 Ashbury Avenue
+Nythe
+Swindon
+SN3 3LX",57 Ashbury Avenue Nythe Swindon SN3 3LX,Mr Shaun Horwood,SN3 3LX,51.563578,-1.746889,True,0.9999999999999999
+SWD0007_8401,"11 Poulton Street
+Gorse Hill
+Swindon
+SN2 1BH",11 Poulton Street Gorse Hill Swindon SN2 1BH,Mr Dammar Singh Thakuri,SN2 1BH,51.570243,-1.778825,True,0.9999999999999999
+SWD0008_8734,"44 Ruskin Avenue
+Stratton St Margaret
+Swindon
+SN2 7NA",44 Ruskin Avenue Stratton St Margaret Swindon SN2 7NA,SCH (UK) Ltd,SN2 7NA,51.585103,-1.759355,True,0.9999999999999999
+SWD0009_5435,"2 Wildern Square
+Kingsdown
+Swindon
+SN3 4RG",2 Wildern Square Kingsdown Swindon SN3 4RG,Cinis One Limited (Co. Regn. No. 09840730),SN3 4RG,51.588274,-1.753405,True,0.9999999999999999
+SWD0010_9901,"44 Withering Road
+Old Town
+Swindon
+SN1 4GU",44 Withering Road Old Town Swindon SN1 4GU,Mr Ebin Thampi And Mrs Sibina Ebin,SN1 4GU,51.548384,-1.793224,True,0.9999999999999999
+SWD0011_9482,"1 Brunswick Street
+Old Town
+Swindon
+SN1 3NA",1 Brunswick Street Old Town Swindon SN1 3NA,Mr Shaun Horwood,SN1 3NA,51.554057,-1.783058,True,0.9999999999999999
+SWD0012_3387,"174 Cricklade Road
+Swindon
+SN2 8AN",174 Cricklade Road Swindon SN2 8AN,Mr Shaun Horwood,SN2 8AN,51.574016,-1.777018,True,0.9999999999999999
+SWD0013_2933,"10 Albion Street
+Swindon
+SN1 5LJ",10 Albion Street Swindon SN1 5LJ,Mr Shaun Horwood,SN1 5LJ,51.557286,-1.793299,True,0.9999999999999999
+SWD0014_2501,"133 County Road
+Swindon
+SN1 2EB",133 County Road Swindon SN1 2EB,Mr Shaun Horwood,SN1 2EB,51.563614,-1.772885,True,0.9999999999999999
+SWD0015_3615,"47 Hythe Road
+Old Town
+Swindon
+Wilts
+SN1 3NY",47 Hythe Road Old Town Swindon Wilts SN1 3NY,Ms Manjeet Bains,SN1 3NY,51.554241,-1.785135,True,0.9999999999999999
+SWD0016_7014,"252 Cricklade Road
+Swindon
+SN2 8AY",252 Cricklade Road Swindon SN2 8AY,Shaun Horwood,SN2 8AY,51.576327,-1.77718,True,0.9999999999999999
+SWD0017_9031,"28 Ermin Street
+Stratton St Margaret
+Swindon
+Wilts
+SN3 4RQ",28 Ermin Street Stratton St Margaret Swindon Wilts SN3 4RQ,Cinis One Limited (Co.Regn.No. 09840730),SN3 4RQ,51.585952,-1.752437,True,0.9999999999999999
+SWD0018_3117,"58 Tryon Close
+Liden
+Swindon
+SN3 6HG",58 Tryon Close Liden Swindon SN3 6HG,Mr Shaun Horwood,SN3 6HG,51.545464,-1.728271,True,0.9999999999999999
+SWD0019_7943,"68 Curtis Street
+Swindon
+SN1 5LR",68 Curtis Street Swindon SN1 5LR,Mr David Ramos,SN1 5LR,51.558242,-1.79041,True,0.9999999999999999
+SWD0020_9332,"198 Cricklade Road
+Swindon
+Wilts
+SN2 8AN",198 Cricklade Road Swindon Wilts SN2 8AN,Cinis One Limited (Co. Regn. No. 09840730),SN2 8AN,51.574016,-1.777018,True,0.9999999999999999
+SWD0021_3383,"30 Curtis Street
+Swindon
+SN1 5JZ",30 Curtis Street Swindon SN1 5JZ,Mr Simon Sargent,SN1 5JZ,51.557704,-1.79083,True,0.9999999999999999
+SWD0022_0286,"30 Ermin Street
+Stratton St Margaret
+Swindon
+SN3 4RQ",30 Ermin Street Stratton St Margaret Swindon SN3 4RQ,CINIS ONE LIMITED (Co. Rgn. No. 09840730),SN3 4RQ,51.585952,-1.752437,True,0.9999999999999999
+SWD0023_3972,"First Floor Flat
+135 - 137 Faringdon Road
+Swindon
+SN1 5DL",First Floor Flat 135 - 137 Faringdon Road Swindon SN1 5DL,Cinis One Ltd (09840730),SN1 5DL,51.558663,-1.794144,True,0.9999999999999999
+SWD0024_2748,"12 Clifton Street
+Kingshill
+Swindon
+SN1 3PY",12 Clifton Street Kingshill Swindon SN1 3PY,Mr Brian Andrews and Mr Ian Slade,SN1 3PY,51.554952,-1.790886,True,0.9999999999999999
+SWD0025_8199,"42 Eastcott Hill
+Swindon
+SN1 3JD",42 Eastcott Hill Swindon SN1 3JD,Mr Jason Barretto,SN1 3JD,51.55706,-1.783073,True,0.9999999999999999
+SWD0026_1385,"126 Manchester Road
+Swindon
+SN1 2AF",126 Manchester Road Swindon SN1 2AF,Mr Ahmet Yilmaz,SN1 2AF,51.565146,-1.779658,True,0.9999999999999999
+SWD0027_3829,"77 Curtis Street
+Swindon
+SN1 5LR",77 Curtis Street Swindon SN1 5LR,Morland Homes Ltd (Co. Regn. No. 10487775),SN1 5LR,51.558242,-1.79041,True,0.9999999999999999
+SWD0028_1270,"88 Graham Street
+Swindon
+SN1 2EZ",88 Graham Street Swindon SN1 2EZ,MSKH Properties Limited (co. No. 10429400),SN1 2EZ,51.564078,-1.77561,True,0.9999999999999999
+SWD0029_4276,"40 Eastcott Hill
+Swindon
+SN1 3JD",40 Eastcott Hill Swindon SN1 3JD,Evolved Property Solutions Ltd (11941696),SN1 3JD,51.55706,-1.783073,True,0.9999999999999999
+SWD0030_4544,"149 Cricklade Road
+Swindon
+SN2 1AD",149 Cricklade Road Swindon SN2 1AD,Mr Mohan Kular,SN2 1AD,51.573225,-1.777354,True,0.9999999999999999
+SWD0031_4940,"112 Groundwell Road
+Swindon
+SN1 2NB",112 Groundwell Road Swindon SN1 2NB,CINIS ONE Ltd.  (co. No. 09840730,SN1 2NB,51.559424,-1.772863,True,0.9999999999999999
+SWD0032_1553,"41 Florence Street
+Gorse Hill
+Swindon
+SN2 1BA",41 Florence Street Gorse Hill Swindon SN2 1BA,Ms Dennika Luker,SN2 1BA,51.570462,-1.780657,True,0.9999999999999999
+SWD0033_9457,"108 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BE",108 Beatrice Street Gorse Hill Swindon SN2 1BE,Oneway Living Limited (Co. Regn. No. 11632978),SN2 1BE,51.56928,-1.778354,True,0.9999999999999999
+SWD0034_6577,"6 Sheppard Street
+Swindon
+SN1 5DB",6 Sheppard Street Swindon SN1 5DB,Mr Jaspal Gill,SN1 5DB,51.563239,-1.78867,True,0.9999999999999999
+SWD0035_5820,"65 Hythe Road
+Old Town
+Swindon
+SN1 3NX",65 Hythe Road Old Town Swindon SN1 3NX,Dimitri BRETTI,SN1 3NX,51.554403,-1.785567,True,0.9999999999999999
+SWD0036_0700,"74 Bath Road
+Old Town
+Swindon
+SN1 4AY",74 Bath Road Old Town Swindon SN1 4AY,Mr Scott Kirby,SN1 4AY,51.552611,-1.784046,True,0.9999999999999999
+SWD0037_8197,"181 Victoria Road
+Old Town
+Swindon
+SN1 3DF",181 Victoria Road Old Town Swindon SN1 3DF,Mr Allan Heneghan  Ms Philippa Slade,SN1 3DF,51.557692,-1.779608,True,0.9999999999999999
+SWD0038_1987,"132 Broad Street
+Swindon
+SN1 2DR",132 Broad Street Swindon SN1 2DR,Azim Khan,SN1 2DR,51.564264,-1.779345,True,0.9999999999999999
+SWD0039_3913,"31 Kingshill Road
+Kingshill
+Swindon
+SN1 4LJ",31 Kingshill Road Kingshill Swindon SN1 4LJ,Mr Julian Cox,SN1 4LJ,51.554356,-1.794207,True,0.9999999999999999
+SWD0040_5085,"129 County Road
+Swindon
+SN1 2EB",129 County Road Swindon SN1 2EB,Mr Abdul Matin,SN1 2EB,51.563614,-1.772885,True,0.9999999999999999
+SWD0041_5064,"8 Manchester Road
+Swindon
+SN1 2AB",8 Manchester Road Swindon SN1 2AB,IS Trading Limited (CRN: 08124737),SN1 2AB,51.565416,-1.779888,True,0.9999999999999999
+SWD0042_9107,"10 Park Lane
+Swindon
+SN1 5HG",10 Park Lane Swindon SN1 5HG,Mr Ashley Thomas Cain,SN1 5HG,51.558792,-1.795817,True,0.9999999999999999
+SWD0043_5632,"123 Pinehurst Road
+Swindon
+SN2 1QP",123 Pinehurst Road Swindon SN2 1QP,Ms Osayi Ebohon,SN2 1QP,51.581165,-1.782553,True,0.9999999999999999
+SWD0044_8835,"9 Croft Road
+Swindon
+SN1 4DG",9 Croft Road Swindon SN1 4DG,Mrs Annekatrin Klassen,SN1 4DG,51.548525,-1.777114,True,0.9999999999999999
+SWD0045_5871,"Colburn House
+32 Victoria Road
+Old Town
+Swindon
+SN1 3AW",Colburn House 32 Victoria Road Old Town Swindon SN1 3AW,Oneway Living Limited (Co. Regn. No. 11632978),SN1 3AW,51.557079,-1.778832,True,0.9999999999999999
+SWD0046_6551,"Zahara House
+62 - 63 Victoria Road
+Old Town
+Swindon
+SN1 3BB",Zahara House 62 - 63 Victoria Road Old Town Swindon SN1 3BB,Mr Minaz Moledina,SN1 3BB,51.554711,-1.77717,True,0.9999999999999999
+SWD0047_4871,"8 Saltash Road
+Rodbourne
+Swindon
+Wilts
+SN2 2EF",8 Saltash Road Rodbourne Swindon Wilts SN2 2EF,Mr Shanif Habib,SN2 2EF,51.558126,-1.806278,True,0.9999999999999999
+SWD0048_5766,"24 High Street
+Old Town
+Swindon
+SN1 3EP",24 High Street Old Town Swindon SN1 3EP,Chris James Property Investments (Co.Regn. No. 11439739),SN1 3EP,51.552351,-1.774687,True,0.9999999999999999
+SWD0049_6106,"16 Saltash Road
+Rodbourne
+Swindon
+Wilts
+SN2 2EF",16 Saltash Road Rodbourne Swindon Wilts SN2 2EF,Mr Anthony Baston-Hall,SN2 2EF,51.558126,-1.806278,True,0.9999999999999999
+SWD0050_1928,"29 Curtis Street
+Swindon
+Wilts
+SN1 5JZ",29 Curtis Street Swindon Wilts SN1 5JZ,"KLC Property Development Ltd (Co. Regn. No, 11274881)",SN1 5JZ,51.557704,-1.79083,True,0.9999999999999999
+SWD0051_8742,"98 Broad Street
+Swindon
+SN1 2DT",98 Broad Street Swindon SN1 2DT,Mr Malkit Singh,SN1 2DT,51.56435,-1.777166,True,0.9999999999999999
+SWD0052_2374,"64 Avenue Road
+Old Town
+Swindon
+SN1 4DA",64 Avenue Road Old Town Swindon SN1 4DA,Mr Julian Cox,SN1 4DA,51.550633,-1.77921,True,0.9999999999999999
+SWD0053_3223,"45 Belle Vue Road
+Old Town
+Swindon
+SN1 3HN",45 Belle Vue Road Old Town Swindon SN1 3HN,"One Land Co Ltd (13029595), Ka Wai NG (Alex)",SN1 3HN,51.554944,-1.776405,True,0.9999999999999999
+SWD0054_6300,"1 Wildern Square
+Kingsdown
+Swindon
+Wilts
+SN3 4RG",1 Wildern Square Kingsdown Swindon Wilts SN3 4RG,Cinis One Ltd (Co. Rgn. No. 09840730),SN3 4RG,51.588274,-1.753405,True,0.9999999999999999
+SWD0055_3682,"1 Poulton Street
+Gorse Hill
+Swindon
+SN2 1BH",1 Poulton Street Gorse Hill Swindon SN2 1BH,KN Property Group (Co. Rgn. No. 12743959),SN2 1BH,51.570243,-1.778825,True,0.9999999999999999
+SWD0056_6317,"124 Stafford Street
+Old Town
+Swindon
+SN1 3PG",124 Stafford Street Old Town Swindon SN1 3PG,Mr Gary Sadler,SN1 3PG,51.556621,-1.783767,True,0.9999999999999999
+SWD0057_8715,"13 Henry Street
+Swindon
+SN1 5BX",13 Henry Street Swindon SN1 5BX,Mr Allan Heneghan  Miss Phillipa Slade,SN1 5BX,51.562348,-1.788501,True,0.9999999999999999
+SWD0058_1661,"50 Shelley Street
+Swindon
+SN1 3PW",50 Shelley Street Swindon SN1 3PW,Mrs Stephanie Bell,SN1 3PW,51.556974,-1.790286,True,0.9999999999999999
+SWD0059_9337,"100 Queens Drive
+Swindon
+SN3 1AN",100 Queens Drive Swindon SN3 1AN,Cavingham Ltd (Co. Regn. No. 13179578),SN3 1AN,51.559822,-1.765086,True,0.9999999999999999
+SWD0060_4138,"69 Ashford Road
+Kingshill
+Swindon
+SN1 3NT",69 Ashford Road Kingshill Swindon SN1 3NT,Mr Christopher Sale and Ms Phillipa Sale,SN1 3NT,51.555332,-1.786875,True,0.9999999999999999
+SWD0061_9087,"51 Bath Road
+Old Town
+Swindon
+SN1 4AU",51 Bath Road Old Town Swindon SN1 4AU,Mr David Sears,SN1 4AU,51.552435,-1.781004,True,0.9999999999999999
+SWD0062_0025,"32 Brunswick Street
+Old Town
+Swindon
+SN1 3NB",32 Brunswick Street Old Town Swindon SN1 3NB,Mr John Walker  Mrs Lynsey Slater-Walker,SN1 3NB,51.554221,-1.784269,True,0.9999999999999999
+SWD0063_5757,"14 Langstone Way
+Westlea
+Swindon
+SN5 7BU",14 Langstone Way Westlea Swindon SN5 7BU,Ms Penelope Atherton,SN5 7BU,51.560312,-1.823896,True,0.9999999999999999
+SWD0064_9752,"52 Hythe Road
+Old Town
+Swindon
+SN1 3NX",52 Hythe Road Old Town Swindon SN1 3NX,Shuna Property Ltd (09906856),SN1 3NX,51.554403,-1.785567,True,0.9999999999999999
+SWD0065_1617,"27-28 Devizes Road
+Old Town
+Swindon
+SN1 4BG",27-28 Devizes Road Old Town Swindon SN1 4BG,Mr Robert Gwynne,SN1 4BG,51.550558,-1.777364,True,0.9999999999999999
+SWD0066_4817,"12 Saltash Road
+Rodbourne
+Swindon
+Wilts
+SN2 2EF",12 Saltash Road Rodbourne Swindon Wilts SN2 2EF,Mr Brett Tubby,SN2 2EF,51.558126,-1.806278,True,0.9999999999999999
+SWD0067_3491,"178 Victoria Road
+Old Town
+Swindon
+SN1 3DF",178 Victoria Road Old Town Swindon SN1 3DF,Rebecca J. Barton,SN1 3DF,51.557692,-1.779608,True,0.9999999999999999
+SWD0068_0399,"2 Jolliffe Street
+Kingshill
+Swindon
+SN1 5HF",2 Jolliffe Street Kingshill Swindon SN1 5HF,Patar  Fibi Simanjuntak,SN1 5HF,51.559036,-1.796681,True,0.9999999999999999
+SWD0069_8608,"Letcombe Villa
+5A Wesley Street
+Old Town
+Swindon
+SN1 3LF",Letcombe Villa 5A Wesley Street Old Town Swindon SN1 3LF,Mr James Blake,SN1 3LF,51.553187,-1.779313,True,0.9999999999999999
+SWD0070_7764,"88 Lansdown Road
+Old Town
+Swindon
+SN1 3ND",88 Lansdown Road Old Town Swindon SN1 3ND,Mr Gary Sadler,SN1 3ND,51.553716,-1.783406,True,0.9999999999999999
+SWD0071_7526,"16 Station Road
+Swindon
+SN1 2BD",16 Station Road Swindon SN1 2BD,MSKH Properties Limited (Co. Regn. No. 10429400),SN1 2BD,51.56756,-1.776949,True,0.9999999999999999
+SWD0072_5917,"30 Eastbury Way
+Redhouse
+Swindon
+SN25 2EN",30 Eastbury Way Redhouse Swindon SN25 2EN,Tanya Bates,SN25 2EN,51.601295,-1.806699,True,0.9999999999999999
+SWD0073_5526,"The Flat
+Blunsdon House Hotel
+The Ridge
+Blunsdon
+Swindon
+SN26 7AS",The Flat Blunsdon House Hotel The Ridge Blunsdon Swindon SN26 7AS,Blunsdon House Hotel Ltd. (co. No. 875727),SN26 7AS,51.613591,-1.788724,True,0.9999999999999999
+SWD0074_0261,"50 Victoria Road
+Old Town
+Swindon
+SN1 3AY",50 Victoria Road Old Town Swindon SN1 3AY,Threshold Housing Link (CRN 01926938),SN1 3AY,51.555828,-1.778102,True,0.9999999999999999
+SWD0075_3824,"79 Lansdown Road
+Old Town
+Swindon
+SN1 3ND",79 Lansdown Road Old Town Swindon SN1 3ND,Brett Property Investments Ltd (09894837),SN1 3ND,51.553716,-1.783406,True,0.9999999999999999
+SWD0076_0865,"17 Neptune Crescent
+Covingham
+Swindon
+SN3 4JE",17 Neptune Crescent Covingham Swindon SN3 4JE,Mr Anthony Michael Baston-Hall,SN3 4JE,51.569204,-1.741418,True,0.9999999999999999
+SWD0077_4028,"45 Albion Street
+Swindon
+SN1 5LL",45 Albion Street Swindon SN1 5LL,Mr Marcus Cook,SN1 5LL,51.55621,-1.795237,True,0.9999999999999999
+SWD0078_8284,"12 Manchester Road
+Swindon
+SN1 2AB",12 Manchester Road Swindon SN1 2AB,Mr Stephen John Kennett & Mrs Maria Teresa Kennett,SN1 2AB,51.565416,-1.779888,True,0.9999999999999999
+SWD0079_7966,"69 Clifton Street
+Kingshill
+Swindon
+SN1 3PY",69 Clifton Street Kingshill Swindon SN1 3PY,Mr Edward Paul Leo Keogh,SN1 3PY,51.554952,-1.790886,True,0.9999999999999999
+SWD0080_4438,"75 County Road
+Swindon
+SN1 2EE",75 County Road Swindon SN1 2EE,Mr Christopher Evans,SN1 2EE,51.56527,-1.77393,True,0.9999999999999999
+SWD0081_4131,"145 Groundwell Road
+Swindon
+SN1 2NA",145 Groundwell Road Swindon SN1 2NA,Cinis One Limited (Co. Regn. No. 09840730),SN1 2NA,51.559516,-1.773959,True,0.9999999999999999
+SWD0082_2493,"56 Victoria Road - C406
+Old Town
+Swindon
+Wiltshire
+SN1 3AY",56 Victoria Road - C406 Old Town Swindon Wiltshire SN1 3AY,Mr Christopher Evans,SN1 3AY,51.555828,-1.778102,True,0.9999999999999999
+SWD0083_2121,"48 Woollaton Close
+Grange Park
+Swindon
+SN5 6BB",48 Woollaton Close Grange Park Swindon SN5 6BB,Invictus Plus Care Ltd (Co Rgn 11135716),SN5 6BB,51.557139,-1.837367,True,0.9999999999999999
+SWD0084_5830,"107 Albion Street
+Swindon
+SN1 5LN",107 Albion Street Swindon SN1 5LN,Propello Properties Ltd (Co Rgn No. 09496739),SN1 5LN,51.556282,-1.795554,True,0.9999999999999999
+SWD0085_0599,"Caretakers House
+177 Victoria Road
+Old Town
+Swindon
+SN1 3DF",Caretakers House 177 Victoria Road Old Town Swindon SN1 3DF,SPN Developments Ltd (Co Rgn. No. 10927376),SN1 3DF,51.557692,-1.779608,True,0.9999999999999999
+SWD0086_2510,"35 Victoria Road
+Old Town
+Swindon
+SN1 3AS",35 Victoria Road Old Town Swindon SN1 3AS,Mr Nicholas Dean,SN1 3AS,51.556494,-1.778431,True,0.9999999999999999
+SWD0087_1845,"49 Stafford Street
+Old Town
+Swindon
+SN1 3PQ",49 Stafford Street Old Town Swindon SN1 3PQ,Mr Chris Lobina,SN1 3PQ,51.555944,-1.787088,True,0.9999999999999999
+SWD0088_8675,"30 Victoria Road
+Old Town
+Swindon
+SN1 3AW",30 Victoria Road Old Town Swindon SN1 3AW,HVY Asset Investments Limited (Co. Regn. No. 09831537),SN1 3AW,51.557079,-1.778832,True,0.9999999999999999
+SWD0089_5888,"174 County Road
+Swindon
+Wiltshire",174 County Road Swindon Wiltshire,Mr Adam Swann,,,,False,0.4
+SWD0090_7095,"70 County Road
+Swindon
+SN1 2EW",70 County Road Swindon SN1 2EW,Cinis One Limited (09840730),SN1 2EW,51.566991,-1.775667,True,0.9999999999999999
+SWD0091_7863,"52 Morse Street
+Swindon
+SN1 5QP",52 Morse Street Swindon SN1 5QP,FH2 Development Ltd (Co. Regn. No. 12314838),SN1 5QP,51.558478,-1.786528,True,0.9999999999999999
+SWD0092_0962,"148 Cricklade Road
+Swindon
+SN2 8AG",148 Cricklade Road Swindon SN2 8AG,Mr Shaun Horwood,SN2 8AG,51.572811,-1.776908,True,0.9999999999999999
+SWD0093_0250,"3 Park Lane
+Swindon
+SN1 5HG",3 Park Lane Swindon SN1 5HG,SCH (UK) LTD (Co. Regn. No. 08330297),SN1 5HG,51.558792,-1.795817,True,0.9999999999999999
+SWD0094_5137,"7A Hythe Road
+Old Town
+Swindon
+SN1 3NZ",7A Hythe Road Old Town Swindon SN1 3NZ,TBA Management (Co. Regn. No. 13638257),SN1 3NZ,51.555519,-1.785734,True,0.9999999999999999
+SWD0095_6199,"14 Eastcott Hill
+Swindon
+SN1 3JG",14 Eastcott Hill Swindon SN1 3JG,SCH (UK) LTD. Co. No. 08330297,SN1 3JG,51.555532,-1.783311,True,0.9999999999999999
+SWD0096_2815,"30 Prospect Place
+Old Town
+Swindon
+SN1 3LG",30 Prospect Place Old Town Swindon SN1 3LG,Langdale Property Group Ltd (13197499),SN1 3LG,51.554292,-1.77912,True,0.9999999999999999
+SWD0097_5067,"17 Marsh Farm Lane
+Swindon
+SN1 2GL",17 Marsh Farm Lane Swindon SN1 2GL,Christopher Evans,SN1 2GL,51.565041,-1.767352,True,0.9999999999999999
+SWD0098_5665,"133 Faringdon Road
+Swindon
+SN1 5DJ",133 Faringdon Road Swindon SN1 5DJ,Cinis One Ltd (Co. Regn. No 09840730),SN1 5DJ,51.559326,-1.792871,True,0.9999999999999999
+SWD0099_7090,"34 Milton Road
+Swindon
+SN1 5JA",34 Milton Road Swindon SN1 5JA,Home In Town Ltd (CRN: 05904360),SN1 5JA,51.560121,-1.789983,True,0.9999999999999999
+SWD0100_7834,"32 Union Street
+Old Town
+Swindon
+SN1 3LD",32 Union Street Old Town Swindon SN1 3LD,Shuna Property Ltd (CRN: 09906856),SN1 3LD,51.554534,-1.778441,True,0.9999999999999999
+SWD0101_7000,"31 Saltash Road
+Rodbourne
+Swindon
+SN2 2EB",31 Saltash Road Rodbourne Swindon SN2 2EB,Asmita Raval,SN2 2EB,51.557936,-1.805903,True,0.9999999999999999
+SWD0102_0173,"55 Curtis Street
+Swindon
+SN1 5LR",55 Curtis Street Swindon SN1 5LR,SCH (UK) Ltd (CRN: 08330297),SN1 5LR,51.558242,-1.79041,True,0.9999999999999999
+SWD0103_4510,"62 Dixon Street
+Swindon
+SN1 3PJ",62 Dixon Street Swindon SN1 3PJ,Mr Charles Hambidge,SN1 3PJ,51.556607,-1.786018,True,0.9999999999999999
+SWD0104_7946,"318 Cricklade Road
+Swindon
+SN2 8AY",318 Cricklade Road Swindon SN2 8AY,Claire Smith,SN2 8AY,51.576327,-1.77718,True,0.9999999999999999
+SWD0105_7617,"The Lodge
+1 Hunt Street
+Old Town
+Swindon
+SN1 3HW",The Lodge 1 Hunt Street Old Town Swindon SN1 3HW,Mr Wayne Evans,SN1 3HW,51.555889,-1.777006,True,0.9999999999999999
+SWD0106_1276,"354 Cheney Manor Road
+Swindon
+SN2 2PF",354 Cheney Manor Road Swindon SN2 2PF,Southern Escapes LTD (Co. Reg. No. 13714057),SN2 2PF,51.580546,-1.798403,True,0.9999999999999999
+SWD0107_5182,"58 Newhall Street
+Swindon
+SN1 5QS",58 Newhall Street Swindon SN1 5QS,Pereybere(UK) Ltd (CRN: 10395858),SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0108_6829,"109 Albion Street
+Swindon
+SN1 5LP",109 Albion Street Swindon SN1 5LP,PPSL Property Ltd (Co Rgn No 13298811),SN1 5LP,51.557492,-1.793312,True,0.9999999999999999
+SWD0109_6302,"4 Millgrove Street
+Redhouse
+Swindon
+Wiltshire
+SN25 2LR",4 Millgrove Street Redhouse Swindon Wiltshire SN25 2LR,Mr David Brian Emerson,SN25 2LR,51.602808,-1.813984,True,0.9999999999999999
+SWD0110_3090,"1 Dixon Street
+Swindon
+SN1 3PL",1 Dixon Street Swindon SN1 3PL,Abode Time Limited (Co Rgn No 13578311),SN1 3PL,51.556841,-1.785959,True,0.9999999999999999
+SWD0111_9831,"3 Trentham Close
+Park South
+Swindon
+SN3 2JL",3 Trentham Close Park South Swindon SN3 2JL,Mr Michal Pazderski,SN3 2JL,51.550957,-1.752468,True,0.9999999999999999
+SWD0112_3376,"Artis Cottage
+1 Swindon Road
+Wroughton
+Swindon
+SN4 9AG",Artis Cottage 1 Swindon Road Wroughton Swindon SN4 9AG,BOC Property Ltd (Co. Regn. No. 13671550),SN4 9AG,51.533758,-1.78526,True,0.9999999999999999
+SWD0113_3291,"44 Victoria Road
+Old Town
+Swindon
+SN1 3AY",44 Victoria Road Old Town Swindon SN1 3AY,Novum Property Ltd (Co. Regn. No 09990113),SN1 3AY,51.555828,-1.778102,True,0.9999999999999999
+SWD0114_0105,"103 Bath Road
+Old Town
+Swindon
+SN1 4AX",103 Bath Road Old Town Swindon SN1 4AX,Gary  Anna McPHERSON,SN1 4AX,51.552207,-1.784365,True,0.9999999999999999
+SWD0115_8692,"109 Morrison Street
+Rodbourne
+Swindon
+SN2 2EZ",109 Morrison Street Rodbourne Swindon SN2 2EZ,Carl BELLINGER,SN2 2EZ,51.565162,-1.803766,True,0.9999999999999999
+SWD0116_5135,"57 Newhall Street
+Swindon
+SN1 5QS",57 Newhall Street Swindon SN1 5QS,Pereybere (UK) Ltd (Co. Rgn. No: 10395858),SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0117_3667,"4 Park Lane
+Swindon
+SN1 5HG",4 Park Lane Swindon SN1 5HG,Ian Nicholas Slade,SN1 5HG,51.558792,-1.795817,True,0.9999999999999999
+SWD0118_2914,"56 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BJ",56 Beatrice Street Gorse Hill Swindon SN2 1BJ,Mr Malkit Singh,SN2 1BJ,51.569588,-1.779536,True,0.9999999999999999
+SWD0119_3068,"129 William Street
+Kingshill
+Swindon
+SN1 5LG",129 William Street Kingshill Swindon SN1 5LG,Philippa J Slade & Allan A Heneghan,SN1 5LG,51.555993,-1.794791,True,0.9999999999999999
+SWD0120_2771,"146 Cricklade Road
+Swindon
+SN2 8AG",146 Cricklade Road Swindon SN2 8AG,Mr Shaun Horwood,SN2 8AG,51.572811,-1.776908,True,0.9999999999999999
+SWD0121_0443,"52 Conisborough
+Toothill
+Swindon
+SN5 8ES",52 Conisborough Toothill Swindon SN5 8ES,Alpha 88 Developments Ltd ( C0. Regn. No 10073254),SN5 8ES,51.55546,-1.826483,True,0.9999999999999999
+SWD0122_7670,"461 Cricklade Road
+Swindon
+SN2 1AQ",461 Cricklade Road Swindon SN2 1AQ,Alpha 88 Developments Ltd (Co. Regn. No.10073254),SN2 1AQ,51.581081,-1.776175,True,0.9999999999999999
+SWD0123_9499,"80 Kent Road
+Kingshill
+Swindon
+SN1 3NW",80 Kent Road Kingshill Swindon SN1 3NW,KLC Property Development Limited (Co Rgn No 11274881),SN1 3NW,51.554938,-1.787612,True,0.9999999999999999
+SWD0124_5636,"8 Langstone Way
+Westlea
+Swindon
+SN5 7BU",8 Langstone Way Westlea Swindon SN5 7BU,Penelope Atherton,SN5 7BU,51.560312,-1.823896,True,0.9999999999999999
+SWD0125_1251,"71 Stafford Street
+Old Town
+Swindon
+SN1 3PF",71 Stafford Street Old Town Swindon SN1 3PF,Penn Property Limited (10557424),SN1 3PF,51.556302,-1.78625,True,0.9999999999999999
+SWD0126_6098,"22 Kent Road
+Kingshill
+Swindon
+SN1 3NJ",22 Kent Road Kingshill Swindon SN1 3NJ,Mr Benjamin Covey  Ms Julia Covey,SN1 3NJ,51.55446,-1.787009,True,0.9999999999999999
+SWD0127_2664,"32 Wood Street
+Old Town
+Swindon
+SN1 4AB",32 Wood Street Old Town Swindon SN1 4AB,Tuan Thong HUYNH,SN1 4AB,51.55256,-1.775782,True,0.9999999999999999
+SWD0128_7267,"89 County Road
+Swindon
+SN1 2EE",89 County Road Swindon SN1 2EE,Threshold Housing Link (Charity No 1017599),SN1 2EE,51.56527,-1.77393,True,0.9999999999999999
+SWD0129_7175,"11 Theobald Street
+Swindon
+SN1 5DU",11 Theobald Street Swindon SN1 5DU,Threshold Housing Link (Charity No. 1017599),SN1 5DU,51.559538,-1.790966,True,0.9999999999999999
+SWD0130_2682,"139 Groundwell Road
+Swindon
+SN1 2NA",139 Groundwell Road Swindon SN1 2NA,Cinis One Limited Co. Reg. No. 09840730,SN1 2NA,51.559516,-1.773959,True,0.9999999999999999
+SWD0131_1312,"59 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BJ",59 Beatrice Street Gorse Hill Swindon SN2 1BJ,Gurbash Kaliroy,SN2 1BJ,51.569588,-1.779536,True,0.9999999999999999
+SWD0132_0888,"47 Westcott Place
+Swindon
+Wilts
+SN1 5HW",47 Westcott Place Swindon Wilts SN1 5HW,Mr Anthony Oakford,SN1 5HW,51.556033,-1.796925,True,0.9999999999999999
+SWD0133_0661,"18 Baskerville Road
+Covingham
+Swindon
+SN3 5DD",18 Baskerville Road Covingham Swindon SN3 5DD,Alpha 88 Developments Ltd (10073254),SN3 5DD,51.565126,-1.723436,True,0.9999999999999999
+SWD0134_9153,"12 Dixon Street
+Swindon
+Wilts
+SN1 3PL",12 Dixon Street Swindon Wilts SN1 3PL,Threshold Housing Link (Charity No. 1017599),SN1 3PL,51.556841,-1.785959,True,0.9999999999999999
+SWD0135_2233,"168 Kingshill Road
+Kingshill
+Swindon
+SN1 4LN",168 Kingshill Road Kingshill Swindon SN1 4LN,ALPHA 88 DEVELOPMENTS LTD (CRN: 10073254),SN1 4LN,51.553914,-1.79356,True,0.9999999999999999
+SWD0136_7864,"26 Groves Street
+Rodbourne
+Swindon
+SN2 2BW",26 Groves Street Rodbourne Swindon SN2 2BW,EL Homes Limited (Co Rgn No 12988371),SN2 2BW,51.562176,-1.803072,True,0.9999999999999999
+SWD0137_5801,"515 Ferndale Road
+Swindon
+Wilts
+SN2 1DF",515 Ferndale Road Swindon Wilts SN2 1DF,Mr Mark Battocchio,SN2 1DF,51.570864,-1.794059,True,0.9999999999999999
+SWD0138_5549,"77 York Road
+Swindon
+SN1 2JR",77 York Road Swindon SN1 2JR,Barber Developments Limited (04356168),SN1 2JR,51.559886,-1.775053,True,0.9999999999999999
+SWD0139_6163,"3 Seacole Crescent
+Old Town
+Swindon
+SN1 4GN",3 Seacole Crescent Old Town Swindon SN1 4GN,Brett Invest Ltd (09894837),SN1 4GN,51.548701,-1.794679,True,0.9999999999999999
+SWD0140_5674,"13 County Road
+Swindon
+SN1 2EG",13 County Road Swindon SN1 2EG,Pealby Properties Ltd (Co Rgn No 12666337),SN1 2EG,51.56681,-1.775033,True,0.9999999999999999
+SWD0141_6630,"6 Newhall Street
+Swindon
+SN1 5QS",6 Newhall Street Swindon SN1 5QS,Penn Property Ltd (10557424),SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0142_0872,"67 Gaveller Road
+Redhouse
+Swindon
+SN25 2DG",67 Gaveller Road Redhouse Swindon SN25 2DG,Mr Jacob Matton,SN25 2DG,51.601005,-1.822525,True,0.9999999999999999
+SWD0143_5873,"49 Pembroke Street
+Old Town
+Swindon
+SN1 3LY",49 Pembroke Street Old Town Swindon SN1 3LY,Threshold Housing Link (Charity No: 1017599),SN1 3LY,51.554805,-1.783978,True,0.9999999999999999
+SWD0144_5868,"39 Rolleston Street
+Swindon
+Wilts
+SN1 3JW",39 Rolleston Street Swindon Wilts SN1 3JW,Mr Attila Denes,SN1 3JW,51.557012,-1.78127,True,0.9999999999999999
+SWD0145_4085,"106 Oxford Road
+Lower Stratton
+Swindon
+Wiltshire",106 Oxford Road Lower Stratton Swindon Wiltshire,DL UK Property Ltd 14089185,,,,False,0.4
+SWD0146_6558,"67 County Road
+Swindon
+SN1 2EE",67 County Road Swindon SN1 2EE,Mr Kevin Medlam,SN1 2EE,51.56527,-1.77393,True,0.9999999999999999
+SWD0147_4862,"Clanfield House
+66 Ashford Road
+Kingshill
+Swindon
+SN1 3NS",Clanfield House 66 Ashford Road Kingshill Swindon SN1 3NS,Christopher Sale,SN1 3NS,51.554517,-1.788465,True,0.9999999999999999
+SWD0148_2693,"43 Curtis Street
+Swindon
+Wiltshire",43 Curtis Street Swindon Wiltshire,Penn Property LTD (CRN 10557424),,,,False,0.4
+SWD0149_3000,"17 Jennings Street
+Rodbourne
+Swindon
+SN2 2BQ",17 Jennings Street Rodbourne Swindon SN2 2BQ,Express Move Properties Ltd (CRN: 11490737),SN2 2BQ,51.563065,-1.802708,True,0.9999999999999999
+SWD0150_7213,"122 Celsus Grove
+Old Town
+Swindon
+SN1 4GS",122 Celsus Grove Old Town Swindon SN1 4GS,Abode Time Limited (CRN 13578311),SN1 4GS,51.549795,-1.793174,True,0.9999999999999999
+SWD0151_6495,"34 North Street
+Old Town
+Swindon
+SN1 3JY",34 North Street Old Town Swindon SN1 3JY,Julian Cox  Rosalind Brooks,SN1 3JY,51.555168,-1.780803,True,0.9999999999999999
+SWD0152_8906,"42 Hythe Road
+Old Town
+Swindon
+SN1 3NY",42 Hythe Road Old Town Swindon SN1 3NY,Morland Homes Limited (10487775),SN1 3NY,51.554241,-1.785135,True,0.9999999999999999
+SWD0153_4266,"27 Milton Road
+Swindon
+SN1 5JA",27 Milton Road Swindon SN1 5JA,Narinder Johal,SN1 5JA,51.560121,-1.789983,True,0.9999999999999999
+SWD0154_5250,"35 Milton Road
+Swindon
+SN1 5JA",35 Milton Road Swindon SN1 5JA,Mr Alhagie Sanneh,SN1 5JA,51.560121,-1.789983,True,0.9999999999999999
+SWD0155_3972,"558 Cricklade Road
+Swindon
+SN2 7AH",558 Cricklade Road Swindon SN2 7AH,Caring For Communities And People (Charity No. 03002869),SN2 7AH,51.587822,-1.774713,True,0.9999999999999999
+SWD0156_2724,"214 Cricklade Road
+Swindon
+SN2 8AT",214 Cricklade Road Swindon SN2 8AT,Emerging Futures (CRN:08938725),SN2 8AT,51.574843,-1.777071,True,0.9999999999999999
+SWD0157_4545,"451 Cricklade Road
+Swindon
+SN2 1AQ",451 Cricklade Road Swindon SN2 1AQ,Alpha 88 Developments Limited,SN2 1AQ,51.581081,-1.776175,True,0.9999999999999999
+SWD0158_8124,"77 Crombey Street
+Swindon
+SN1 5QW",77 Crombey Street Swindon SN1 5QW,TBA Management Ltd,SN1 5QW,51.558311,-1.788592,True,0.9999999999999999
+SWD0159_9877,"13 Hunters Grove
+Ferndale
+Swindon
+SN2 1HE",13 Hunters Grove Ferndale Swindon SN2 1HE,Dennika BRETTI,SN2 1HE,51.57204,-1.788196,True,0.9999999999999999
+SWD0160_8682,"11 White Eagle Road
+Haydon End
+Swindon
+SN25 1TN",11 White Eagle Road Haydon End Swindon SN25 1TN,Hang Your Hat Homes Ltd (Co. Regn. No. 10675388),SN25 1TN,51.59689,-1.813171,True,0.9999999999999999
+SWD0161_6487,"69 Curtis Street
+Swindon
+SN1 5LR",69 Curtis Street Swindon SN1 5LR,Threshold Housing Link (Charity No 1017599),SN1 5LR,51.558242,-1.79041,True,0.9999999999999999
+SWD0162_2361,"3 Chestnut Avenue
+Pinehurst
+Swindon
+SN2 1SN",3 Chestnut Avenue Pinehurst Swindon SN2 1SN,Threshold Housing Link,SN2 1SN,51.583674,-1.777677,True,0.9999999999999999
+SWD0163_5913,"82 Deacon Street
+Swindon
+SN1 5ND",82 Deacon Street Swindon SN1 5ND,Cinis One Ltd (CRN: 09840730),SN1 5ND,51.558391,-1.787755,True,0.9999999999999999
+SWD0164_1735,"71 Eastcott Hill
+Swindon
+SN1 3JF",71 Eastcott Hill Swindon SN1 3JF,Oneway Living Limited  (CRN: 11632978),SN1 3JF,51.5567,-1.782671,True,0.9999999999999999
+SWD0165_4179,"40 Caulfield Road
+Gorse Hill
+Swindon
+SN2 8BS",40 Caulfield Road Gorse Hill Swindon SN2 8BS,Threshold Housing Link (CRN: CE022051) (Charity No.:1017559),SN2 8BS,51.570091,-1.774526,True,0.9999999999999999
+SWD0166_2495,"99 William Street
+Kingshill
+Swindon
+SN1 5LG",99 William Street Kingshill Swindon SN1 5LG,Threshold Housing Link (CRN: CE022051) (Charity No.:1017599),SN1 5LG,51.555993,-1.794791,True,0.9999999999999999
+SWD0167_0928,"37 Morris Street
+Rodbourne
+Swindon
+SN2 2HU",37 Morris Street Rodbourne Swindon SN2 2HU,Kavancy Investments Limited (Co.Regn.No. 10971438),SN2 2HU,51.565267,-1.80215,True,0.9999999999999999
+SWD0168_3639,"14 Marbeck Close
+Redhouse
+Swindon
+SN25 2LT",14 Marbeck Close Redhouse Swindon SN25 2LT,JFR Homes Limited,SN25 2LT,51.602966,-1.811529,True,0.9999999999999999
+SWD0169_3939,"204 County Road
+Swindon
+SN1 2EA",204 County Road Swindon SN1 2EA,"Express Apartments Ltd (Co.Regn.No, 12182832)",SN1 2EA,51.562894,-1.772528,True,0.9999999999999999
+SWD0170_7245,"10 Hunters Grove
+Ferndale
+Swindon
+SN2 1HE",10 Hunters Grove Ferndale Swindon SN2 1HE,Mr Muhkam Dogra,SN2 1HE,51.57204,-1.788196,True,0.9999999999999999
+SWD0171_2877,"The Flat
+42 Regent Street
+Swindon
+SN1 1JL",The Flat 42 Regent Street Swindon SN1 1JL,Hakka 2 Ltd (co.regn.no. 14453947),SN1 1JL,51.560027,-1.782842,True,0.9999999999999999
+SWD0172_7058,"43 Eastcott Hill
+Swindon
+SN1 3JD",43 Eastcott Hill Swindon SN1 3JD,Brett Property Investments Ltd (09894837 ),SN1 3JD,51.55706,-1.783073,True,0.9999999999999999
+SWD0173_2803,"19 Theobald Street
+Swindon
+SN1 5DU",19 Theobald Street Swindon SN1 5DU,Sylviah Nunudzai Matsekeza  Shalom Tadiwanashe Matsekeza,SN1 5DU,51.559538,-1.790966,True,0.9999999999999999
+SWD0174_7111,"18 Cricklade Street
+Old Town
+Swindon
+SN1 3HG",18 Cricklade Street Old Town Swindon SN1 3HG,Threshold Housing Link (co.Regn.No - 01926938),SN1 3HG,51.554322,-1.775586,True,0.9999999999999999
+SWD0175_1824,"38 County Road
+Swindon
+SN1 2EW",38 County Road Swindon SN1 2EW,Mr Alexander Tekele,SN1 2EW,51.566991,-1.775667,True,0.9999999999999999
+SWD0176_2600,"11 Galen View
+Old Town
+Swindon
+SN1 4GF",11 Galen View Old Town Swindon SN1 4GF,Mrs Claire Smith,SN1 4GF,51.548297,-1.795085,True,0.9999999999999999
+SWD0177_8889,"21 Euclid Street
+Swindon
+SN1 2JW",21 Euclid Street Swindon SN1 2JW,Archibald Newall,SN1 2JW,51.559637,-1.776252,True,0.9999999999999999
+SWD0178_5950,"69 County Road
+Swindon
+SN1 2EE",69 County Road Swindon SN1 2EE,First Choice Housing,SN1 2EE,51.56527,-1.77393,True,0.9999999999999999
+SWD0179_7393,"14 Dixon Street
+Swindon
+SN1 3PL",14 Dixon Street Swindon SN1 3PL,Mr Charles Hambidge,SN1 3PL,51.556841,-1.785959,True,0.9999999999999999
+SWD0180_0685,"31 Victoria Road
+Old Town
+Swindon
+SN1 3AW",31 Victoria Road Old Town Swindon SN1 3AW,HVY Asset Investments Ltd (CRN 09831537),SN1 3AW,51.557079,-1.778832,True,0.9999999999999999
+SWD0181_4013,"69 Eastcott Hill
+Swindon
+SN1 3JF",69 Eastcott Hill Swindon SN1 3JF,Brett Property Investments Ltd (CRN 09894837),SN1 3JF,51.5567,-1.782671,True,0.9999999999999999
+SWD0182_1332,"505 Cricklade Road
+Swindon
+SN2 1AQ",505 Cricklade Road Swindon SN2 1AQ,David And Claire Smith,SN2 1AQ,51.581081,-1.776175,True,0.9999999999999999
+SWD0183_3904,"44 Eastcott Hill
+Swindon
+SN1 3JD",44 Eastcott Hill Swindon SN1 3JD,Brett Property Investments Ltd (Co Rgn No 09894837),SN1 3JD,51.55706,-1.783073,True,0.9999999999999999
+SWD0184_5787,"Heritage House
+24 - 26 Bath Road
+Old Town
+Swindon
+SN1 4BA",Heritage House 24 - 26 Bath Road Old Town Swindon SN1 4BA,Scott Kirby,SN1 4BA,51.552854,-1.779357,True,0.9999999999999999
+SWD0185_4894,"178 County Road
+Swindon
+Wiltshire
+SN1 2DY",178 County Road Swindon Wiltshire SN1 2DY,Isaac & Shija Samuel,SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0186_2224,"124 Celsus Grove
+Old Town
+Swindon
+SN1 4GS",124 Celsus Grove Old Town Swindon SN1 4GS,Abode Time Ltd (CRN: 13578311),SN1 4GS,51.549795,-1.793174,True,0.9999999999999999
+SWD0187_7418,"45 Birch Street
+Kingshill
+Swindon
+SN1 5EU",45 Birch Street Kingshill Swindon SN1 5EU,Mr Marcus Cook,SN1 5EU,51.557817,-1.798951,True,0.9999999999999999
+SWD0188_9071,"76 Albion Street
+Swindon
+SN1 5LL",76 Albion Street Swindon SN1 5LL,Tesito Investment Group (CRN: 11395323),SN1 5LL,51.55621,-1.795237,True,0.9999999999999999
+SWD0189_7606,"13 York Road
+Swindon
+SN1 2LE",13 York Road Swindon SN1 2LE,Emperor Property Development Limited,SN1 2LE,51.562215,-1.775056,True,0.9999999999999999
+SWD0190_6634,"Morris Street Club
+20 - 22 Morris Street
+Rodbourne
+Swindon
+SN2 2HU",Morris Street Club 20 - 22 Morris Street Rodbourne Swindon SN2 2HU,Marz Sholanke,SN2 2HU,51.565267,-1.80215,True,0.9999999999999999
+SWD0191_9582,"11 Croft Road
+Swindon
+SN1 4DG",11 Croft Road Swindon SN1 4DG,Novum Property Ltd,SN1 4DG,51.548525,-1.777114,True,0.9999999999999999
+SWD0192_5771,"16 Vaughan Williams Way
+Redhouse
+Swindon
+SN25 2GU",16 Vaughan Williams Way Redhouse Swindon SN25 2GU,Richard Aylward,SN25 2GU,51.603997,-1.815337,True,0.9999999999999999
+SWD0193_5074,"26 Fitwell Road
+Redhouse
+Swindon
+SN25 2EZ",26 Fitwell Road Redhouse Swindon SN25 2EZ,Richard Aylward,SN25 2EZ,51.602248,-1.82395,True,0.9999999999999999
+SWD0194_0689,"138 County Road
+Swindon
+SN1 2DY",138 County Road Swindon SN1 2DY,Think Commercial Properties Limited (Co. Reg. 07826078),SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0195_6585,"140 County Road
+Swindon
+SN1 2DY",140 County Road Swindon SN1 2DY,Think Commercial Properties Limited (Co. Reg. 07826078),SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0196_1295,"1B Ermin Street
+Stratton St Margaret
+Swindon
+SN3 4RH",1B Ermin Street Stratton St Margaret Swindon SN3 4RH,Cinis One Ltd (Co.Regn.No. 09840730),SN3 4RH,51.586598,-1.751928,True,0.9999999999999999
+SWD0197_5361,"26 Victoria Road
+Swindon
+Wiltshire
+SN1 3AW",26 Victoria Road Swindon Wiltshire SN1 3AW,Brett Property Investments Ltd (09894837),SN1 3AW,51.557079,-1.778832,True,0.9999999999999999
+SWD0198_3029,"27 Victoria Road
+Old Town
+Swindon
+SN1 3AW",27 Victoria Road Old Town Swindon SN1 3AW,Brett Property Investments Ltd (09894837),SN1 3AW,51.557079,-1.778832,True,0.9999999999999999
+SWD0199_8788,"25 Euclid Street
+Swindon
+SN1 2JW",25 Euclid Street Swindon SN1 2JW,Mr Kane Andrews,SN1 2JW,51.559637,-1.776252,True,0.9999999999999999
+SWD0200_2860,"11 Sheppard Street
+Swindon
+SN1 5DB",11 Sheppard Street Swindon SN1 5DB,Anders Homes Limited (Co. Reg. 14883024),SN1 5DB,51.563239,-1.78867,True,0.9999999999999999
+SWD0201_6810,"67 Manchester Road
+Swindon
+Wiltshire",67 Manchester Road Swindon Wiltshire,First Choice Housing,,,,False,0.4
+SWD0202_6332,"86 Broad Street
+Swindon
+Wiltshire",86 Broad Street Swindon Wiltshire,First Choice Housing,,,,False,0.4
+SWD0203_2798,"15 County Road
+Swindon
+SN1 2EG",15 County Road Swindon SN1 2EG,First Choice Housing,SN1 2EG,51.56681,-1.775033,True,0.9999999999999999
+SWD0204_2125,"1 Grosvenor Road
+Kingshill
+Swindon
+SN1 4LT",1 Grosvenor Road Kingshill Swindon SN1 4LT,CWP Estates Ltd (Company No. 08687670),SN1 4LT,51.552965,-1.795857,True,0.9999999999999999
+SWD0205_1459,"153 Grange Drive
+Stratton St Margaret
+Swindon
+SN3 4JY",153 Grange Drive Stratton St Margaret Swindon SN3 4JY,"GRIZEDALE HOLDINGS LIMITED (Co. Regn. No.
+11442019)",SN3 4JY,51.579473,-1.745631,True,0.9999999999999999
+SWD0206_9457,"9 Florence Street
+Gorse Hill
+Swindon
+SN2 1BA",9 Florence Street Gorse Hill Swindon SN2 1BA,KN Property Group Ltd (Co. Reg. 12743959),SN2 1BA,51.570462,-1.780657,True,0.9999999999999999
+SWD0207_7744,"5 Wheatlands
+Haydon Wick
+Swindon
+SN25 1RL",5 Wheatlands Haydon Wick Swindon SN25 1RL,Mrs Julia Mathews,SN25 1RL,51.588175,-1.811865,True,0.9999999999999999
+SWD0208_0549,"103 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BE",103 Beatrice Street Gorse Hill Swindon SN2 1BE,Mrs Barbara Trunfio & Mr Andrea Trunfio,SN2 1BE,51.56928,-1.778354,True,0.9999999999999999
+SWD0209_9686,"3 Cameron Close
+Stratton St Margaret
+Swindon
+SN3 4PF",3 Cameron Close Stratton St Margaret Swindon SN3 4PF,Brigitte Clee,SN3 4PF,51.575625,-1.754195,True,0.9999999999999999
+SWD0210_5800,"44 Godolphin Close
+Freshbrook
+Swindon
+SN5 8RN",44 Godolphin Close Freshbrook Swindon SN5 8RN,Isaac Samuel,SN5 8RN,51.54846,-1.842489,True,0.9999999999999999
+SWD0211_8581,"9 Purley Avenue
+Park South
+Swindon
+SN3 2DS",9 Purley Avenue Park South Swindon SN3 2DS,Mrs Susan Cleeves,SN3 2DS,51.547358,-1.746993,True,0.9999999999999999
+SWD0212_3087,"13 Theobald Street
+Swindon
+SN1 5DU",13 Theobald Street Swindon SN1 5DU,Ms Rebecca Hilliard,SN1 5DU,51.559538,-1.790966,True,0.9999999999999999
+SWD0213_2637,"30 Euclid Street
+Swindon
+SN1 2JW",30 Euclid Street Swindon SN1 2JW,Eureka Spaces Ltd (CRN 13198926),SN1 2JW,51.559637,-1.776252,True,0.9999999999999999
+SWD0214_7757,"75 Curtis Street
+Swindon
+Wiltshire",75 Curtis Street Swindon Wiltshire,Suls Real-Estate Group Ltd (Comp Regn: 13295736),,,,False,0.4
+SWD0215_0438,"1C Ermin Street
+Stratton St Margaret
+Swindon
+SN3 4RH",1C Ermin Street Stratton St Margaret Swindon SN3 4RH,Cinis One Ltd 09840730,SN3 4RH,51.586598,-1.751928,True,0.9999999999999999
+SWD0216_3643,"5 Newhall Street
+Swindon
+SN1 5QS",5 Newhall Street Swindon SN1 5QS,HMO Rooms Ltd (Co. Regn. No. 10618066),SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0217_6951,"9 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BB",9 Beatrice Street Gorse Hill Swindon SN2 1BB,Mr Dammer Singh Thakuri,SN2 1BB,51.569161,-1.782279,True,0.9999999999999999
+SWD0218_8473,"3 Shelley Street
+Swindon
+SN1 3PN",3 Shelley Street Swindon SN1 3PN,Oneway Living Limited (co. No.: 11632978),SN1 3PN,51.557136,-1.790025,True,0.9999999999999999
+SWD0219_5696,"180 Cricklade Road
+Swindon
+SN2 8AN",180 Cricklade Road Swindon SN2 8AN,Hungref Limited (Co. Regn. No. 02732644),SN2 8AN,51.574016,-1.777018,True,0.9999999999999999
+SWD0220_3487,"8 Stratton Road
+Stratton St Margaret
+Swindon
+SN1 2PR",8 Stratton Road Stratton St Margaret Swindon SN1 2PR,Mr Gary Sadler,SN1 2PR,51.571562,-1.759441,True,0.9999999999999999
+SWD0221_9887,"190 Kingshill Road
+Kingshill
+Swindon
+SN1 4NE",190 Kingshill Road Kingshill Swindon SN1 4NE,Morland Homes Limited (CRN 10487775),SN1 4NE,51.554424,-1.797033,True,0.9999999999999999
+SWD0222_5894,"63 Broad Street
+Swindon
+Wiltshire",63 Broad Street Swindon Wiltshire,Kim Musgrave,,,,False,0.4
+SWD0223_8055,"8 Crombey Street
+Swindon
+SN1 5QJ",8 Crombey Street Swindon SN1 5QJ,David Ramos,SN1 5QJ,51.557556,-1.783705,True,0.9999999999999999
+SWD0224_1638,"12 Hunters Grove
+Ferndale
+Swindon
+SN2 1HE",12 Hunters Grove Ferndale Swindon SN2 1HE,Muhkam Singh Dogra,SN2 1HE,51.57204,-1.788196,True,0.9999999999999999
+SWD0225_6077,"12 Redcliffe Street
+Swindon
+SN2 2DA",12 Redcliffe Street Swindon SN2 2DA,Professional Values (Redcliffe) Ltd. (Co. Rgn No. 10061089),SN2 2DA,51.562199,-1.800908,True,0.9999999999999999
+SWD0226_4516,"125 County Road
+Swindon
+SN1 2EB",125 County Road Swindon SN1 2EB,Mr Kashmir Bains,SN1 2EB,51.563614,-1.772885,True,0.9999999999999999
+SWD0227_0425,"10 Norman Road
+Gorse Hill
+Swindon
+SN2 1AZ",10 Norman Road Gorse Hill Swindon SN2 1AZ,Regaliz Limited (10169361),SN2 1AZ,51.572334,-1.781441,True,0.9999999999999999
+SWD0228_9084,"110 Croft Road
+Swindon
+SN1 4DT",110 Croft Road Swindon SN1 4DT,Emperor Property Development Ltd,SN1 4DT,51.543183,-1.781337,True,0.9999999999999999
+SWD0229_5795,"85 Winifred Street
+Old Town
+Swindon
+SN3 1RT",85 Winifred Street Old Town Swindon SN3 1RT,Simon Pugh,SN3 1RT,51.547899,-1.774233,True,0.9999999999999999
+SWD0230_6787,"65 Montagu Street
+Rodbourne
+Swindon
+SN2 2HL",65 Montagu Street Rodbourne Swindon SN2 2HL,Anders Homes Limited (Co. Reg. 14883024),SN2 2HL,51.563114,-1.805059,True,0.9999999999999999
+SWD0231_4516,"13 The Circle
+Pinehurst
+Swindon
+SN2 1QR",13 The Circle Pinehurst Swindon SN2 1QR,Adrian Marchant,SN2 1QR,51.582181,-1.782462,True,0.9999999999999999
+SWD0232_6493,"30 Savernake Street
+Old Town
+Swindon
+SN1 3LZ",30 Savernake Street Old Town Swindon SN1 3LZ,PADHAM PROPERTIES LIMITED (Co. No. 00463840),SN1 3LZ,51.555472,-1.7851,True,0.9999999999999999
+SWD0233_2301,"36 Euclid Street
+Swindon
+SN1 2JW",36 Euclid Street Swindon SN1 2JW,Propertybox Investments Ltd # 05874616,SN1 2JW,51.559637,-1.776252,True,0.9999999999999999
+SWD0234_9474,"10 Lincoln Street
+Swindon
+Wiltshire",10 Lincoln Street Swindon Wiltshire,Propertybox Investments Ltd # 05874616,,,,False,0.4
+SWD0235_7801,"4 Kent Road
+Kingshill
+Swindon
+SN1 3NJ",4 Kent Road Kingshill Swindon SN1 3NJ,Propertybox Investments Ltd # 05874616,SN1 3NJ,51.55446,-1.787009,True,0.9999999999999999
+SWD0236_4965,"16 Pasteur Drive
+Old Town
+Swindon
+SN1 4GH",16 Pasteur Drive Old Town Swindon SN1 4GH,B&M Resinvest Ltd (14102645),SN1 4GH,51.549565,-1.795036,True,0.9999999999999999
+SWD0237_5508,"Flat B
+57 Eastcott Road
+Old Town
+Swindon
+SN1 3LS",Flat B 57 Eastcott Road Old Town Swindon SN1 3LS,Mr John House,SN1 3LS,51.553288,-1.780668,True,0.9999999999999999
+SWD0238_8674,"39 Beechcroft Road
+Swindon
+SN2 7RD",39 Beechcroft Road Swindon SN2 7RD,HBH Investments Limited (Co. Reg. No. 08215267),SN2 7RD,51.586576,-1.772005,True,0.9999999999999999
+SWD0239_2522,"68 Broad Street
+Swindon
+Wilts
+SN1 2DX",68 Broad Street Swindon Wilts SN1 2DX,Mrs Osayi Ebohon,SN1 2DX,51.56503,-1.775114,True,0.9999999999999999
+SWD0240_7919,"147 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BD",147 Beatrice Street Gorse Hill Swindon SN2 1BD,Mrs Rukayat Oriyomi Odekunle,SN2 1BD,51.569008,-1.781804,True,0.9999999999999999
+SWD0241_4071,"34 Dover Street
+Old Town
+Swindon
+SN1 3JP",34 Dover Street Old Town Swindon SN1 3JP,Brett Invest Ltd (09894837),SN1 3JP,51.555628,-1.781407,True,0.9999999999999999
+SWD0242_1922,"Flat A
+57 Eastcott Road
+Old Town
+Swindon
+SN1 3LS",Flat A 57 Eastcott Road Old Town Swindon SN1 3LS,Mr Gregory House and John House,SN1 3LS,51.553288,-1.780668,True,0.9999999999999999
+SWD0243_6465,"35 Dover Street
+Old Town
+Swindon
+SN1 3JP",35 Dover Street Old Town Swindon SN1 3JP,Brett Property Investments (CRN: 09894837),SN1 3JP,51.555628,-1.781407,True,0.9999999999999999
+SWD0244_0311,"70 Lansdown Road
+Old Town
+Swindon
+SN1 3NF",70 Lansdown Road Old Town Swindon SN1 3NF,KLC Property Development Limited (CRN 11274881),SN1 3NF,51.553208,-1.785817,True,0.9999999999999999
+SWD0245_2457,"60 Newhall Street
+Swindon
+SN1 5QS",60 Newhall Street Swindon SN1 5QS,Ananta Estates Ltd (Co. Rgn. No. 09715501),SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0246_1545,"80 Curtis Street
+Swindon
+SN1 5LR",80 Curtis Street Swindon SN1 5LR,Zarsk Properties Ltd. 11089652,SN1 5LR,51.558242,-1.79041,True,0.9999999999999999
+SWD0247_9566,"82 Conisborough
+Toothill
+Swindon
+SN5 8ET",82 Conisborough Toothill Swindon SN5 8ET,Cinis One Ltd. (Co. No. 09840730),SN5 8ET,51.555431,-1.824752,True,0.9999999999999999
+SWD0248_7390,"4 Swindon Road
+Old Town
+Swindon
+Wiltshire",4 Swindon Road Old Town Swindon Wiltshire,Mr Robert George Sutherland,,,,False,0.4
+SWD0249_8270,"6A 
+6A - 6B Manchester Road
+Swindon
+SN1 2AB",6A 6A - 6B Manchester Road Swindon SN1 2AB,I.S Trading Limited (Co. Rgn. No. 08124737),SN1 2AB,51.565416,-1.779888,True,0.9999999999999999
+SWD0250_8609,"44 Belle Vue Road
+Old Town
+Swindon
+SN1 3HN",44 Belle Vue Road Old Town Swindon SN1 3HN,Brett Invest Ltd (09894837),SN1 3HN,51.554944,-1.776405,True,0.9999999999999999
+SWD0251_5350,"2 Newhall Street
+Swindon
+SN1 5QS",2 Newhall Street Swindon SN1 5QS,Brett Property Investment Ltd (CRN: 09894837),SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0252_1861,"607 Queens Drive
+Swindon
+SN3 1AY",607 Queens Drive Swindon SN3 1AY,W & A Evans,SN3 1AY,51.546909,-1.751308,True,0.9999999999999999
+SWD0253_7729,"9 Curtis Street
+Swindon
+SN1 5JU",9 Curtis Street Swindon SN1 5JU,Propertybox Investments Ltd (co. House: 05874616),SN1 5JU,51.558663,-1.789124,True,0.9999999999999999
+SWD0254_3269,"112 Dean Street
+Swindon
+SN1 5EN",112 Dean Street Swindon SN1 5EN,Sheba W (UK) Property Holding And Management Ltd,SN1 5EN,51.559451,-1.797703,True,0.9999999999999999
+SWD0255_6970,"4 Truman Close
+Eldene
+Swindon
+SN3 3SA",4 Truman Close Eldene Swindon SN3 3SA,Mrs Mary Hannan,SN3 3SA,51.553508,-1.734656,True,0.9999999999999999
+SWD0256_6372,"1 High Street
+Haydon Wick
+Swindon
+SN25 1HU",1 High Street Haydon Wick Swindon SN25 1HU,BOC Property CRN 13671550,SN25 1HU,51.589964,-1.806026,True,0.9999999999999999
+SWD0257_3032,"10 Station Road
+Swindon
+SN1 2BD",10 Station Road Swindon SN1 2BD,Mr Malkit Singh,SN1 2BD,51.56756,-1.776949,True,0.9999999999999999
+SWD0258_1109,"9A Purley Avenue
+Park South
+Swindon
+Wilts",9A Purley Avenue Park South Swindon Wilts,Mr And Mrs Bradley,,,,False,0.4
+SWD0259_1501,"14A Rodbourne Road
+Swindon
+SN2 2AG",14A Rodbourne Road Swindon SN2 2AG,Mr Azim Khan,SN2 2AG,51.565984,-1.800444,True,0.9999999999999999
+SWD0260_3922,"25 Plymouth Street
+Swindon
+Wilts
+SN1 2LA",25 Plymouth Street Swindon Wilts SN1 2LA,Richard Musgrave,SN1 2LA,51.561637,-1.77353,True,0.9999999999999999
+SWD0261_8300,"81 Morris Street
+Rodbourne
+Swindon
+SN2 2HT",81 Morris Street Rodbourne Swindon SN2 2HT,HOLLYWELL PROPERTY INVESTMENTS LTD (CRN: 13915895),SN2 2HT,51.564111,-1.804247,True,0.9999999999999999
+SWD0262_3385,"130 Oxford Road
+Stratton St Margaret
+Swindon
+SN3 4HD",130 Oxford Road Stratton St Margaret Swindon SN3 4HD,PJ Real Estate Limited (Co. Rgn. No. 11672741),SN3 4HD,51.574907,-1.74254,True,0.9999999999999999
+SWD0263_1381,"7 Beaumont Road
+Walcot
+Swindon
+SN3 3BE",7 Beaumont Road Walcot Swindon SN3 3BE,Isaac Samuel,SN3 3BE,51.562201,-1.763111,True,0.9999999999999999
+SWD0264_3687,"27 North Street
+Old Town
+Swindon
+SN1 3JX",27 North Street Old Town Swindon SN1 3JX,Lawson Asset Holdings Ltd (CRN 15163896),SN1 3JX,51.555015,-1.780688,True,0.9999999999999999
+SWD0265_3056,"14 Greywethers Avenue
+Old Town
+Swindon
+SN3 1QF",14 Greywethers Avenue Old Town Swindon SN3 1QF,Mrs Catherine Stubbs,SN3 1QF,51.548867,-1.76807,True,0.9999999999999999
+SWD0266_3115,"43 Conisborough
+Toothill
+Swindon
+SN5 8ES",43 Conisborough Toothill Swindon SN5 8ES,Cinis One Ltd (Co. Reg. No. 09840730),SN5 8ES,51.55546,-1.826483,True,0.9999999999999999
+SWD0267_8741,"63 Deacon Street
+Swindon
+SN1 5NB",63 Deacon Street Swindon SN1 5NB,Roche Property Enterprises Limited (Co. Rgn. No. 07630878),SN1 5NB,51.557169,-1.788208,True,0.9999999999999999
+SWD0268_0428,"145 Faringdon Road
+Swindon
+SN1 5DL",145 Faringdon Road Swindon SN1 5DL,Fleet Street Property Ltd,SN1 5DL,51.558663,-1.794144,True,0.9999999999999999
+SWD0269_1736,"15 Grantham Close
+Freshbrook
+Swindon
+SN5 8NZ",15 Grantham Close Freshbrook Swindon SN5 8NZ,Mr Atif Omer Khan,SN5 8NZ,51.547413,-1.832845,True,0.9999999999999999
+SWD0270_0071,"32 Read Street
+Swindon
+SN1 5HJ",32 Read Street Swindon SN1 5HJ,Mr Isaac Samuel,SN1 5HJ,51.557648,-1.795144,True,0.9999999999999999
+SWD0271_8785,"40 Conisborough
+Toothill
+Swindon
+SN5 8ES",40 Conisborough Toothill Swindon SN5 8ES,Cinis One Ltd (Co.Reg.No. 09840730),SN5 8ES,51.55546,-1.826483,True,0.9999999999999999
+SWD0272_3485,"14 Milton Road
+Swindon
+SN1 5JE",14 Milton Road Swindon SN1 5JE,Novum Property Ltd .09990113,SN1 5JE,51.560075,-1.789348,True,0.9999999999999999
+SWD0273_0218,"37 Dores Road
+Upper Stratton
+Swindon
+SN2 7QU",37 Dores Road Upper Stratton Swindon SN2 7QU,Thomas Gascoigne,SN2 7QU,51.585151,-1.769948,True,0.9999999999999999
+SWD0274_6774,"50 Pleydell Road
+Old Town
+Swindon
+SN1 4DH",50 Pleydell Road Old Town Swindon SN1 4DH,Mr Isaac Samuel,SN1 4DH,51.545978,-1.780472,True,0.9999999999999999
+SWD0275_2339,"58 Conisborough
+Toothill
+Swindon
+SN5 8ET",58 Conisborough Toothill Swindon SN5 8ET,Cinis One Ltd 09840730,SN5 8ET,51.555431,-1.824752,True,0.9999999999999999
+SWD0276_3370,"216 Kingshill Road
+Kingshill
+Swindon
+SN1 4NG",216 Kingshill Road Kingshill Swindon SN1 4NG,JWF PROPERTIES LIMITED (14171460),SN1 4NG,51.554676,-1.797321,True,0.9999999999999999
+SWD0277_1234,"32 Kingshill Road
+Kingshill
+Swindon
+SN1 4LJ",32 Kingshill Road Kingshill Swindon SN1 4LJ,TF Management Limited (11539147),SN1 4LJ,51.554356,-1.794207,True,0.9999999999999999
+SWD0278_5165,"2 Old Clifton School
+Radnor Street
+Kingshill
+Swindon
+SN1 3PR",2 Old Clifton School Radnor Street Kingshill Swindon SN1 3PR,Sukh Mander,SN1 3PR,51.556394,-1.792697,True,0.9999999999999999
+SWD0279_6397,"18 Farriers Close
+Marshgate
+Swindon
+Wilts
+SN1 2QS",18 Farriers Close Marshgate Swindon Wilts SN1 2QS,Mr Malkit Singh,SN1 2QS,51.569115,-1.767649,True,0.9999999999999999
+SWD0280_9687,"42 Victoria Road
+Old Town
+Swindon
+SN1 3AY",42 Victoria Road Old Town Swindon SN1 3AY,Century Assets Ltd 11467671,SN1 3AY,51.555828,-1.778102,True,0.9999999999999999
+SWD0281_7117,"21 Mannington Park
+Rodbourne
+Swindon
+SN2 2EJ",21 Mannington Park Rodbourne Swindon SN2 2EJ,Mr Mark Battocchio,SN2 2EJ,51.567501,-1.804578,True,0.9999999999999999
+SWD0282_1920,"67 Faringdon Road
+Swindon
+SN1 5DQ",67 Faringdon Road Swindon SN1 5DQ,Mr Wayne Evans,SN1 5DQ,51.56025,-1.791598,True,0.9999999999999999
+SWD0283_1101,"76 Whitworth Road
+Swindon
+SN25 3BH",76 Whitworth Road Swindon SN25 3BH,Threshold Housing Link (CRN 01926938),SN25 3BH,51.584615,-1.780906,True,0.9999999999999999
+SWD0284_7703,"142 Kingshill Road
+Kingshill
+Swindon
+SN1 4LW",142 Kingshill Road Kingshill Swindon SN1 4LW,Mrs Kate Atkinson,SN1 4LW,51.553506,-1.791686,True,0.9999999999999999
+SWD0285_2633,"12 Sheppard Street
+Swindon
+SN1 5DB",12 Sheppard Street Swindon SN1 5DB,Anders Homes Limited (Co. Reg. 14883024),SN1 5DB,51.563239,-1.78867,True,0.9999999999999999
+SWD0286_3703,"117 Linslade Street
+Rodbourne
+Swindon
+SN2 2BN",117 Linslade Street Rodbourne Swindon SN2 2BN,HBH Investments Ltd (Co. Reg. No. 08215267),SN2 2BN,51.562705,-1.80206,True,0.9999999999999999
+SWD0287_7608,"Hall And Woodhouse
+Peglars Way
+Swindon
+Swindon
+SN1 7DA",Hall And Woodhouse Peglars Way Swindon Swindon SN1 7DA,Hall And Woodhouse Limited (Co. Reg. No. 00057696),SN1 7DA,51.545426,-1.80949,True,0.9999999999999999
+SWD0288_8066,"3 Old Clifton School
+Radnor Street
+Kingshill
+Swindon
+SN1 3PR",3 Old Clifton School Radnor Street Kingshill Swindon SN1 3PR,Mr Sukh Mander,SN1 3PR,51.556394,-1.792697,True,0.9999999999999999
+SWD0289_4467,"43 Chester Street
+Swindon
+SN1 5DX",43 Chester Street Swindon SN1 5DX,Mr Gary Sadler,SN1 5DX,51.559699,-1.790518,True,0.9999999999999999
+SWD0290_3861,"7 Theobald Street
+Swindon
+SN1 5DU",7 Theobald Street Swindon SN1 5DU,Val Baker,SN1 5DU,51.559538,-1.790966,True,0.9999999999999999
+SWD0291_9718,"40 Belle Vue Road
+Old Town
+Swindon
+SN1 3HN",40 Belle Vue Road Old Town Swindon SN1 3HN,Brett Property Investment Ltd (09894837),SN1 3HN,51.554944,-1.776405,True,0.9999999999999999
+SWD0292_1949,"119 County Road
+Swindon
+SN1 2EB",119 County Road Swindon SN1 2EB,Mrs Danuta Platek,SN1 2EB,51.563614,-1.772885,True,0.9999999999999999
+SWD0293_3217,"85 Birch Street
+Kingshill
+Swindon
+SN1 5HD",85 Birch Street Kingshill Swindon SN1 5HD,Morland Homes Ltd (Co. Reg. No. 10487775),SN1 5HD,51.558388,-1.796338,True,0.9999999999999999
+SWD0294_3615,"140 William Street
+Kingshill
+Swindon
+SN1 5LQ",140 William Street Kingshill Swindon SN1 5LQ,Brett Property Investments Ltd (Co. Reg. No: 09894837 ),SN1 5LQ,51.556943,-1.792998,True,0.9999999999999999
+SWD0295_7541,"1 Fairview
+Kingshill
+Swindon
+SN1 3PP",1 Fairview Kingshill Swindon SN1 3PP,Onefairview Limited (Co. Rgn. No. 09429486),SN1 3PP,51.556669,-1.790172,True,0.9999999999999999
+SWD0296_6658,"103 County Road
+Swindon
+SN1 2EE",103 County Road Swindon SN1 2EE,County Estates Limited (Co. Rgn. No. 09642148),SN1 2EE,51.56527,-1.77393,True,0.9999999999999999
+SWD0297_7846,"42 Conisborough
+Toothill
+Swindon
+SN5 8ES",42 Conisborough Toothill Swindon SN5 8ES,Cinis One Ltd,SN5 8ES,51.55546,-1.826483,True,0.9999999999999999
+SWD0298_0039,"97 County Road
+Swindon
+SN1 2EE",97 County Road Swindon SN1 2EE,MPT Ventures Limited (12140289),SN1 2EE,51.56527,-1.77393,True,0.9999999999999999
+SWD0299_3867,"22 Bilborough Drive
+Walcot
+Swindon
+SN3 2GZ",22 Bilborough Drive Walcot Swindon SN3 2GZ,Mr Richard Aylward,SN3 2GZ,51.5562,-1.757113,True,0.9999999999999999
+SWD0300_3730,"2 Deacon Street
+Swindon
+SN1 5NA",2 Deacon Street Swindon SN1 5NA,Property Time (2016) Ltd (Co.Reg.No. 10031662),SN1 5NA,51.557797,-1.787599,True,0.9999999999999999
+SWD0301_4429,"68 Eastcott Hill
+Swindon
+SN1 3JF",68 Eastcott Hill Swindon SN1 3JF,Brett Property Investments Ltd (co. # 09894837 ),SN1 3JF,51.5567,-1.782671,True,0.9999999999999999
+SWD0302_9712,"Radnor House
+90 Radnor Street
+Kingshill
+Swindon
+SN1 3PS",Radnor House 90 Radnor Street Kingshill Swindon SN1 3PS,Radnor Estates Ltd. (09429418),SN1 3PS,51.556223,-1.792496,True,0.9999999999999999
+SWD0303_2819,"Rulfcott
+Highworth Road
+Swindon
+SN3 4QS",Rulfcott Highworth Road Swindon SN3 4QS,Alpha 88 Developments Limited (10073254),SN3 4QS,51.591487,-1.7463,True,0.9999999999999999
+SWD0304_4019,"92 Albion Street
+Swindon
+SN1 5LN",92 Albion Street Swindon SN1 5LN,Cinis One Limited,SN1 5LN,51.556282,-1.795554,True,0.9999999999999999
+SWD0305_7817,"22 Green Road
+Upper Stratton
+Swindon
+SN2 7HZ",22 Green Road Upper Stratton Swindon SN2 7HZ,Grizedale Holdings Limited (11442019),SN2 7HZ,51.584102,-1.766894,True,0.9999999999999999
+SWD0306_2531,"42 Chester Street
+Swindon
+SN1 5DX",42 Chester Street Swindon SN1 5DX,Mr Craig Baycroft,SN1 5DX,51.559699,-1.790518,True,0.9999999999999999
+SWD0307_2432,"118 Redhouse Way
+Redhouse
+Swindon
+SN25 2AU",118 Redhouse Way Redhouse Swindon SN25 2AU,Mr Rupert Moorley,SN25 2AU,51.602134,-1.819763,True,0.9999999999999999
+SWD0308_6043,"1-2 Clifton Street
+Kingshill
+Swindon
+SN1 3PY",1-2 Clifton Street Kingshill Swindon SN1 3PY,Christopher And Geraldine Smith,SN1 3PY,51.554952,-1.790886,True,0.9999999999999999
+SWD0309_6980,"153 Goddard Avenue
+Old Town
+Swindon
+SN1 4HX",153 Goddard Avenue Old Town Swindon SN1 4HX,Oneway Living Limited (11632978),SN1 4HX,51.551114,-1.786202,True,0.9999999999999999
+SWD0310_4013,"23 Radnor Street
+Kingshill
+Swindon
+SN1 3PR",23 Radnor Street Kingshill Swindon SN1 3PR,TF Management Ltd (11539147),SN1 3PR,51.556394,-1.792697,True,0.9999999999999999
+SWD0311_8559,"29 County Road
+Swindon
+SN1 2EG",29 County Road Swindon SN1 2EG,SS Property Swindon Ltd. (co. No. 15153926 ),SN1 2EG,51.56681,-1.775033,True,0.9999999999999999
+SWD0312_0620,"12 Jennings Street
+Rodbourne
+Swindon
+SN2 2BQ",12 Jennings Street Rodbourne Swindon SN2 2BQ,Mr Muhkam Dogra,SN2 2BQ,51.563065,-1.802708,True,0.9999999999999999
+SWD0313_0000,"105 Faringdon Road
+Swindon
+SN1 5DJ",105 Faringdon Road Swindon SN1 5DJ,Treetops Properties Ltd (Comp Regn: SC321070),SN1 5DJ,51.559326,-1.792871,True,0.9999999999999999
+SWD0314_8765,"47 County Road
+Swindon
+SN1 2EG",47 County Road Swindon SN1 2EG,Treetops Properties Ltd (Comp Regn: SC321070),SN1 2EG,51.56681,-1.775033,True,0.9999999999999999
+SWD0315_1537,"34 Morse Street
+Swindon
+SN1 5QR",34 Morse Street Swindon SN1 5QR,Treetops Properties Ltd (Comp Regn: SC321070),SN1 5QR,51.557535,-1.787225,True,0.9999999999999999
+SWD0316_2042,"92 Deacon Street
+Swindon
+Wiltshire",92 Deacon Street Swindon Wiltshire,Penn Property Investments Ltd 10557424,,,,False,0.4
+SWD0317_0820,"93 Hythe Road
+Old Town
+Swindon
+SN1 3NZ",93 Hythe Road Old Town Swindon SN1 3NZ,Penn Property Investments Ltd 10557424,SN1 3NZ,51.555519,-1.785734,True,0.9999999999999999
+SWD0318_4790,"28 William Street
+Kingshill
+Swindon
+SN1 5LB",28 William Street Kingshill Swindon SN1 5LB,Brett Property Investments Limited (CRN 09894837),SN1 5LB,51.556486,-1.793519,True,0.9999999999999999
+SWD0319_2040,"192 County Road
+Swindon
+SN1 2DY",192 County Road Swindon SN1 2DY,Mr Stephen Ring,SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0320_2432,"102 Beatrice Street
+Gorse Hill
+Swindon
+Wilts
+SN2 1BE",102 Beatrice Street Gorse Hill Swindon Wilts SN2 1BE,Mr Malkit Singh,SN2 1BE,51.56928,-1.778354,True,0.9999999999999999
+SWD0321_7424,"216 County Road
+Swindon
+Wiltshire
+SN1 2EA",216 County Road Swindon Wiltshire SN1 2EA,Treetops Properties Ltd (Comp Regn: SC321070),SN1 2EA,51.562894,-1.772528,True,0.9999999999999999
+SWD0322_6984,"47 Curtis Street
+Swindon
+SN1 5JZ",47 Curtis Street Swindon SN1 5JZ,Mr Isaac Samuel,SN1 5JZ,51.557704,-1.79083,True,0.9999999999999999
+SWD0323_4417,"70 Eastcott Hill
+Swindon
+SN1 3JF",70 Eastcott Hill Swindon SN1 3JF,Brett Property Investments Ltd,SN1 3JF,51.5567,-1.782671,True,0.9999999999999999
+SWD0324_3006,"177 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BD",177 Beatrice Street Gorse Hill Swindon SN2 1BD,Mr Malkit Singh,SN2 1BD,51.569008,-1.781804,True,0.9999999999999999
+SWD0325_6919,"15 Station Road
+Swindon
+SN1 2BD",15 Station Road Swindon SN1 2BD,Mr Malkit Singh,SN1 2BD,51.56756,-1.776949,True,0.9999999999999999
+SWD0326_2604,"86 Crombey Street
+Swindon
+SN1 5QJ",86 Crombey Street Swindon SN1 5QJ,Regaliz Ltd (co. No. 10169361),SN1 5QJ,51.557556,-1.783705,True,0.9999999999999999
+SWD0327_8384,"41 Lansdown Road
+Old Town
+Swindon
+SN1 3NE",41 Lansdown Road Old Town Swindon SN1 3NE,Abode Time Ltd (Comp Reg: 13578311),SN1 3NE,51.553419,-1.783321,True,0.9999999999999999
+SWD0328_1179,"9 Groundwell Road
+Swindon
+SN1 2LT",9 Groundwell Road Swindon SN1 2LT,Mr David John Mackley,SN1 2LT,51.55859,-1.778666,True,0.9999999999999999
+SWD0329_6189,"5 Vaughan Williams Way
+Redhouse
+Swindon
+SN25 2QY",5 Vaughan Williams Way Redhouse Swindon SN25 2QY,Holland's Homes Ltd (co. No.:11764826),SN25 2QY,51.604651,-1.813674,True,0.9999999999999999
+SWD0330_2916,"104 County Road
+Swindon
+SN1 2EP",104 County Road Swindon SN1 2EP,Mr Malkit Singh,SN1 2EP,51.565496,-1.774636,True,0.9999999999999999
+SWD0331_9449,"28 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BB",28 Beatrice Street Gorse Hill Swindon SN2 1BB,Mr Malkit Singh,SN2 1BB,51.569161,-1.782279,True,0.9999999999999999
+SWD0332_2580,"31 Kent Road
+Kingshill
+Swindon
+SN1 3NQ",31 Kent Road Kingshill Swindon SN1 3NQ,Mr Gary Brown,SN1 3NQ,51.55356,-1.786566,True,0.9999999999999999
+SWD0333_5731,"29A - 30 High Street
+Highworth
+Swindon",29A - 30 High Street Highworth Swindon,United Kochi Limited (CRN 15676350),,,,False,0.4
+SWD0334_0471,"27A Faringdon Road
+Swindon
+SN1 5AR",27A Faringdon Road Swindon SN1 5AR,Mr Richard Jones,SN1 5AR,51.561441,-1.78914,True,0.9999999999999999
+SWD0335_4627,"87 Birch Street
+Kingshill
+Swindon
+SN1 5HD",87 Birch Street Kingshill Swindon SN1 5HD,Mr Brian Andrews,SN1 5HD,51.558388,-1.796338,True,0.9999999999999999
+SWD0336_7245,"163 William Street
+Kingshill
+Swindon
+SN1 5LQ",163 William Street Kingshill Swindon SN1 5LQ,Regaliz Limited (Co. Rgn. No10169361),SN1 5LQ,51.556943,-1.792998,True,0.9999999999999999
+SWD0337_0823,"50 Eastcott Hill
+Swindon
+SN1 3JB",50 Eastcott Hill Swindon SN1 3JB,Brett Property Investments Ltd (Co Reg 09894837),SN1 3JB,51.557905,-1.782607,True,0.9999999999999999
+SWD0338_7318,"17 Theobald Street
+Swindon
+SN1 5DU",17 Theobald Street Swindon SN1 5DU,Mr Mark Anthony Battocchio,SN1 5DU,51.559538,-1.790966,True,0.9999999999999999
+SWD0339_6296,"82 Drakes Way
+Walcot
+Swindon
+SN3 3EH",82 Drakes Way Walcot Swindon SN3 3EH,Mr  Mrs Isaac  Shija Samuel,SN3 3EH,51.565171,-1.760196,True,0.9999999999999999
+SWD0340_7806,"51 Eastcott Hill
+Swindon
+SN1 3JB",51 Eastcott Hill Swindon SN1 3JB,Brett Property Investments Ltd (CRN 09894837),SN1 3JB,51.557905,-1.782607,True,0.9999999999999999
+SWD0341_8657,"52 Eastcott Hill
+Swindon
+SN1 3JB",52 Eastcott Hill Swindon SN1 3JB,Brett Property Investments (CRN 09894837 ),SN1 3JB,51.557905,-1.782607,True,0.9999999999999999
+SWD0342_4606,"120 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BE",120 Beatrice Street Gorse Hill Swindon SN2 1BE,MSKH Properties Ltd 10429400,SN2 1BE,51.56928,-1.778354,True,0.9999999999999999
+SWD0343_5553,"41 Elmina Road
+Swindon
+SN1 2BG",41 Elmina Road Swindon SN1 2BG,Mr Malkit Singh,SN1 2BG,51.567083,-1.776763,True,0.9999999999999999
+SWD0344_3278,"90 Manchester Road
+Swindon
+SN1 2AJ",90 Manchester Road Swindon SN1 2AJ,Miss Asmita Raval,SN1 2AJ,51.565707,-1.77664,True,0.9999999999999999
+SWD0345_8614,"4 Delft Crescent
+Redhouse
+Swindon
+SN25 2LU",4 Delft Crescent Redhouse Swindon SN25 2LU,Miss Katherine Palmer,SN25 2LU,51.602524,-1.816484,True,0.9999999999999999
+SWD0346_0026,"53 Crombey Street
+Swindon
+SN1 5QN",53 Crombey Street Swindon SN1 5QN,Mrs Anna Zengaya,SN1 5QN,51.558002,-1.786603,True,0.9999999999999999
+SWD0347_6360,"151 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BD",151 Beatrice Street Gorse Hill Swindon SN2 1BD,Pereybere(UK) Ltd (CRN 10395858 ),SN2 1BD,51.569008,-1.781804,True,0.9999999999999999
+SWD0348_6072,"36 County Road
+Swindon
+SN1 2EW",36 County Road Swindon SN1 2EW,Mr Malkit Singh,SN1 2EW,51.566991,-1.775667,True,0.9999999999999999
+SWD0349_4929,"76 Rosebery Street
+Swindon
+SN1 2ER",76 Rosebery Street Swindon SN1 2ER,Mr Malkit Singh,SN1 2ER,51.563742,-1.774385,True,0.9999999999999999
+SWD0350_3439,"12 Bramwell Close
+Kingsdown
+Swindon
+SN2 7SN",12 Bramwell Close Kingsdown Swindon SN2 7SN,Grizedale Holdings Limited,SN2 7SN,51.596167,-1.766168,True,0.9999999999999999
+SWD0351_7062,"182 County Road
+Swindon
+SN1 2DY",182 County Road Swindon SN1 2DY,Mrs Anna Zengeya,SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0352_8906,"38 Prospect Hill
+Old Town
+Swindon
+SN1 3JS",38 Prospect Hill Old Town Swindon SN1 3JS,Mr Jason Kirton,SN1 3JS,51.555967,-1.780352,True,0.9999999999999999
+SWD0353_0066,"49 High Street
+Wroughton
+Swindon
+SN4 9JX",49 High Street Wroughton Swindon SN4 9JX,Mr Karl Potts,SN4 9JX,51.522511,-1.795778,True,0.9999999999999999
+SWD0354_3810,"52 Newhall Street
+Swindon
+SN1 5QS",52 Newhall Street Swindon SN1 5QS,Mr Edward David Payne,SN1 5QS,51.558378,-1.786067,True,0.9999999999999999
+SWD0355_6866,"13 The Broadway
+Moredon
+Swindon
+SN25 3BN",13 The Broadway Moredon Swindon SN25 3BN,Mr Richard Jones And Mrs Sally Jones,SN25 3BN,51.585348,-1.798598,True,0.9999999999999999
+SWD0356_2368,"21 Dixon Street
+Swindon
+SN1 3PL",21 Dixon Street Swindon SN1 3PL,Hestian Properties Ltd,SN1 3PL,51.556841,-1.785959,True,0.9999999999999999
+SWD0357_6116,"53 Eastcott Hill
+Swindon
+SN1 3JB",53 Eastcott Hill Swindon SN1 3JB,Brett Property Investments Ltd (Co.No. 09894837),SN1 3JB,51.557905,-1.782607,True,0.9999999999999999
+SWD0358_2642,"123 Faringdon Road
+Swindon
+SN1 5DJ",123 Faringdon Road Swindon SN1 5DJ,Suleman Kudus,SN1 5DJ,51.559326,-1.792871,True,0.9999999999999999
+SWD0359_6756,"29 Croft Road
+Swindon
+SN1 4DG",29 Croft Road Swindon SN1 4DG,Susan Cleeves,SN1 4DG,51.548525,-1.777114,True,0.9999999999999999
+SWD0360_1347,"69 Graham Street
+Swindon
+Wilts
+SN1 2HA",69 Graham Street Swindon Wilts SN1 2HA,Mr Mark Battocchio,SN1 2HA,51.563267,-1.775022,True,0.9999999999999999
+SWD0361_7037,"1 Compton Close
+Eldene
+Swindon
+SN3 6DW",1 Compton Close Eldene Swindon SN3 6DW,Kavancy Investments LTD (Co.No 10971438),SN3 6DW,51.552494,-1.739623,True,0.9999999999999999
+SWD0362_5342,"12 Hunt Street
+Old Town
+Swindon
+SN1 3HW",12 Hunt Street Old Town Swindon SN1 3HW,Sadrudin Bhatia,SN1 3HW,51.555889,-1.777006,True,0.9999999999999999
+SWD0363_7941,"51 Crombey Street
+Swindon
+SN1 5QN",51 Crombey Street Swindon SN1 5QN,Penn Property  Ltd (Co. Rgn. No. 10557424),SN1 5QN,51.558002,-1.786603,True,0.9999999999999999
+SWD0364_6340,"15 Belgrave Street
+Swindon
+SN1 3HR",15 Belgrave Street Swindon SN1 3HR,Mr David Ramos,SN1 3HR,51.557285,-1.778369,True,0.9999999999999999
+SWD0365_7293,"322 Cricklade Road
+Swindon
+SN2 8AY",322 Cricklade Road Swindon SN2 8AY,Stephen Green,SN2 8AY,51.576327,-1.77718,True,0.9999999999999999
+SWD0366_4141,"32 County Road
+Swindon
+SN1 2EW",32 County Road Swindon SN1 2EW,Mr Minaz Moledina,SN1 2EW,51.566991,-1.775667,True,0.9999999999999999
+SWD0367_6372,"58 Victoria Road
+Old Town
+Swindon
+SN1 3BB",58 Victoria Road Old Town Swindon SN1 3BB,Mr Minaz Moledina,SN1 3BB,51.554711,-1.77717,True,0.9999999999999999
+SWD0368_5227,"20 Dean Street
+Swindon
+SN1 5EN",20 Dean Street Swindon SN1 5EN,Simon Liddiard,SN1 5EN,51.559451,-1.797703,True,0.9999999999999999
+SWD0369_0702,"37 Faringdon Road
+Swindon
+SN1 5AR",37 Faringdon Road Swindon SN1 5AR,Mr Izzet Donmez,SN1 5AR,51.561441,-1.78914,True,0.9999999999999999
+SWD0370_1014,"27 Prospect Hill
+Old Town
+Swindon
+SN1 3JS",27 Prospect Hill Old Town Swindon SN1 3JS,Brett Property Investments Ltd (Co.no 09894837),SN1 3JS,51.555967,-1.780352,True,0.9999999999999999
+SWD0371_3280,"148 County Road
+Swindon
+SN1 2DY",148 County Road Swindon SN1 2DY,Cinis One Limited (Co. No.: 09840730),SN1 2DY,51.564119,-1.773763,True,0.9999999999999999
+SWD0372_1574,"33 
+33 - 33A Dixon Street
+Swindon
+SN1 3PL",33 33 - 33A Dixon Street Swindon SN1 3PL,Brett Property Investments Ltd (Co.No. 09894837),SN1 3PL,51.556841,-1.785959,True,0.9999999999999999
+SWD0373_6965,"33A 
+33 - 33A Dixon Street
+Swindon
+SN1 3PL",33A 33 - 33A Dixon Street Swindon SN1 3PL,Brett Property Investments Ltd (Co.No.09894837 ),SN1 3PL,51.556841,-1.785959,True,0.9999999999999999
+SWD0374_5054,"249 Whitworth Road
+Swindon
+SN25 3BU",249 Whitworth Road Swindon SN25 3BU,Threshold Housing Link (Char No 1017599),SN25 3BU,51.582936,-1.797007,True,0.9999999999999999
+SWD0375_8457,"143 Manchester Road
+Swindon
+Wilts
+SN1 2AF",143 Manchester Road Swindon Wilts SN1 2AF,Hazrath Shajalal Central Mosque,SN1 2AF,51.565146,-1.779658,True,0.9999999999999999
+SWD0376_3840,"30 Belle Vue Road
+Old Town
+Swindon
+SN1 3HN",30 Belle Vue Road Old Town Swindon SN1 3HN,Suls Real-Estate Group Ltd (Co.Reg.No. 13295736),SN1 3HN,51.554944,-1.776405,True,0.9999999999999999
+SWD0377_2036,"25 Elgar Close
+Redhouse
+Swindon
+SN25 2HG",25 Elgar Close Redhouse Swindon SN25 2HG,Mr Dale Burrell,SN25 2HG,51.602514,-1.810304,True,0.9999999999999999
+SWD0378_3388,"71 Eastbury Way
+Redhouse
+Swindon
+SN25 2EL",71 Eastbury Way Redhouse Swindon SN25 2EL,Dale Burrell,SN25 2EL,51.602204,-1.807287,True,0.9999999999999999
+SWD0379_5024,"10 Bronte Close
+Liden
+Swindon
+SN3 6JL",10 Bronte Close Liden Swindon SN3 6JL,Threshold Housing Link (Charity No 1017599),SN3 6JL,51.550569,-1.731486,True,0.9999999999999999
+SWD0380_2699,"8 East Street
+Railway Village
+Swindon
+SN1 5BU",8 East Street Railway Village Swindon SN1 5BU,First Choice Housing (CRN 16352277),SN1 5BU,51.562889,-1.789321,True,0.9999999999999999
+SWD0381_4058,"85 Beatrice Street
+Gorse Hill
+Swindon
+SN2 1BG",85 Beatrice Street Gorse Hill Swindon SN2 1BG,KN Property Group Ltd (12743959),SN2 1BG,51.569638,-1.777804,True,0.9999999999999999
+SWD0382_4400,"99 Lansdown Road
+Old Town
+Swindon
+SN1 3ND",99 Lansdown Road Old Town Swindon SN1 3ND,Freedom Holdings Ltd (Company Reg No: 12283885),SN1 3ND,51.553716,-1.783406,True,0.9999999999999999
+SWD0383_8387,"38 Euclid Street
+Swindon
+SN1 2JW",38 Euclid Street Swindon SN1 2JW,Andrew Spring,SN1 2JW,51.559637,-1.776252,True,0.9999999999999999
+SWD0384_3217,"43 Ponting Street
+Swindon
+SN1 2BW",43 Ponting Street Swindon SN1 2BW,Mr Vicentinho Dourado,SN1 2BW,51.563634,-1.778742,True,0.9999999999999999

@@ -2,7 +2,7 @@
 Database CRUD operations for HMO Analyser
 """
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import desc, and_, or_, func, text
 from models import Property, PropertyAnalysis, AnalysisTask, AnalyticsLog, PropertyChange, PropertyTrend, PropertyURL, RoomChange, Room, RoomAvailabilityPeriod, RoomPriceHistory, get_price_trend_direction
 from typing import List, Optional, Dict, Any, Tuple
@@ -224,7 +224,148 @@ class AnalysisCRUD:
             "total_monthly_income": round(total_monthly_income, 2),
             "total_annual_income": round(total_monthly_income * 12, 2)
         }
+    
+    @staticmethod
+    def get_all_properties_with_analysis(
+        db: Session, 
+        limit: int = 100, 
+        offset: int = 0,
+        sort_by: str = "created_at",      # 🆕 ADD
+        sort_order: str = "desc"          # 🆕 ADD
+    ) -> List[Tuple[Property, Optional[PropertyAnalysis]]]:
+        """Get all properties with their latest analysis in a single optimized query WITH SORTING"""
+        
+        # Create a subquery to get the latest analysis created_at for each property
+        latest_analysis_subquery = (
+            db.query(
+                PropertyAnalysis.property_id,
+                func.max(PropertyAnalysis.created_at).label('max_created_at')
+            )
+            .group_by(PropertyAnalysis.property_id)
+            .subquery()
+        )
+        
+        # Join properties with the subquery first, then with property_analyses
+        query = (
+            db.query(Property, PropertyAnalysis)
+            .outerjoin(
+                latest_analysis_subquery,
+                Property.id == latest_analysis_subquery.c.property_id
+            )
+            .outerjoin(
+                PropertyAnalysis,
+                and_(
+                    Property.id == PropertyAnalysis.property_id,
+                    PropertyAnalysis.created_at == latest_analysis_subquery.c.max_created_at
+                )
+            )
+        )
+        
+        # 🆕 ADD: Apply sorting based on parameters
+        if sort_by == "created_at":
+            sort_column = Property.created_at
+        elif sort_by == "address":
+            sort_column = Property.address
+        elif sort_by == "monthly_income":
+            sort_column = PropertyAnalysis.monthly_income
+        elif sort_by == "analysis_date":
+            sort_column = PropertyAnalysis.created_at
+        else:
+            sort_column = Property.created_at  # Default fallback
+        
+        # Apply sorting
+        if sort_order == "desc":
+            if sort_by in ["monthly_income", "analysis_date"]:
+                # For analysis fields, handle nulls and add secondary sort
+                query = query.order_by(sort_column.desc().nulls_last(), Property.created_at.desc())
+            else:
+                query = query.order_by(sort_column.desc())
+        else:
+            if sort_by in ["monthly_income", "analysis_date"]:
+                # For analysis fields, handle nulls and add secondary sort
+                query = query.order_by(sort_column.asc().nulls_last(), Property.created_at.desc())
+            else:
+                query = query.order_by(sort_column.asc())
+        
+        # Apply limit and offset
+        properties_with_analysis = query.limit(limit).offset(offset).all()
+        
+        return properties_with_analysis
 
+    
+    @staticmethod
+    def get_properties_batch_data(db: Session, property_ids: List[str]) -> Dict[str, Any]:
+        """Get all related data for multiple properties in batch queries"""
+        
+        # Convert UUIDs to strings if needed
+        property_ids = [str(pid) if isinstance(pid, uuid.UUID) else pid for pid in property_ids]
+        
+        if not property_ids:
+            return {'analyses': {}, 'rooms': {}, 'changes': {}}
+        
+        # Batch fetch latest analyses
+        latest_analyses_subquery = (
+            db.query(
+                PropertyAnalysis.property_id,
+                func.max(PropertyAnalysis.created_at).label('max_created_at')
+            )
+            .filter(PropertyAnalysis.property_id.in_(property_ids))
+            .group_by(PropertyAnalysis.property_id)
+            .subquery()
+        )
+        
+        latest_analyses = (
+            db.query(PropertyAnalysis)
+            .join(
+                latest_analyses_subquery,
+                and_(
+                    PropertyAnalysis.property_id == latest_analyses_subquery.c.property_id,
+                    PropertyAnalysis.created_at == latest_analyses_subquery.c.max_created_at
+                )
+            )
+            .all()
+        )
+        
+        # Batch fetch room data
+        rooms_with_history = (
+            db.query(Room)
+            .filter(Room.property_id.in_(property_ids))
+            .all()
+        )
+        
+        # Batch fetch property changes (for date gone calculation)
+        property_changes = (
+            db.query(PropertyChange)
+            .filter(
+                PropertyChange.property_id.in_(property_ids),
+                PropertyChange.change_type == 'listing_status',
+                PropertyChange.new_value.in_(['Gone', 'Let Agreed', 'Unavailable'])
+            )
+            .order_by(PropertyChange.property_id, desc(PropertyChange.detected_at))
+            .all()
+        )
+        
+        # Organize data by property_id for easy lookup
+        analyses_by_property = {str(analysis.property_id): analysis for analysis in latest_analyses}
+        rooms_by_property = {}
+        changes_by_property = {}
+        
+        for room in rooms_with_history:
+            prop_id = str(room.property_id)
+            if prop_id not in rooms_by_property:
+                rooms_by_property[prop_id] = []
+            rooms_by_property[prop_id].append(room)
+        
+        for change in property_changes:
+            prop_id = str(change.property_id)
+            if prop_id not in changes_by_property:
+                changes_by_property[prop_id] = change  # Keep only the latest
+        
+        return {
+            'analyses': analyses_by_property,
+            'rooms': rooms_by_property,
+            'changes': changes_by_property
+        }
 # crud.py - Updated TaskCRUD class
 
 class TaskCRUD:
@@ -328,9 +469,25 @@ class AnalyticsCRUD:
         ip_address: str = None
     ) -> AnalyticsLog:
         """Log an analytics event - handles both UUID and string formats"""
+        import uuid
+        
         # Handle both UUID and string formats
         if isinstance(property_id, uuid.UUID):
             property_id = str(property_id)
+        
+        # ✅ Convert any UUID objects in event_data to strings
+        if event_data:
+            def convert_uuids(obj):
+                if isinstance(obj, uuid.UUID):
+                    return str(obj)
+                elif isinstance(obj, dict):
+                    return {k: convert_uuids(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_uuids(item) for item in obj]
+                else:
+                    return obj
+            
+            event_data = convert_uuids(event_data)
             
         log_entry = AnalyticsLog(
             event_type=event_type,
@@ -1141,7 +1298,8 @@ class RoomCRUD:
         db: Session,
         property_id,
         rooms_list: List[str],
-        analysis_id=None
+        analysis_id=None,
+        context=None  # ✅ ADD this parameter
     ) -> Dict[str, Any]:
         """Process a complete rooms list and update room tracking"""
         # Handle UUID format
@@ -1648,6 +1806,64 @@ class RoomAvailabilityPeriodCRUD:
             summary["property_date_gone"] = max(property_date_gone_candidates).isoformat()
         
         return summary
+    
+    @staticmethod
+    def get_batch_property_date_gone(db: Session, property_ids: List[str]) -> Dict[str, Optional[str]]:
+        """
+        Efficiently calculate date_gone for multiple properties in a single batch query
+        Returns: {property_id: date_gone_iso_string or None}
+        """
+        if not property_ids:
+            return {}
+        
+        # Single query to get all room data for all properties
+        rooms_query = text("""
+            SELECT 
+                CAST(r.property_id AS TEXT) as property_id,
+                r.current_status,
+                r.date_gone,
+                r.is_currently_listed
+            FROM rooms r
+            WHERE CAST(r.property_id AS TEXT) = ANY(:property_ids)
+        """)
+        
+        result = db.execute(rooms_query, {"property_ids": property_ids})
+        rows = result.fetchall()
+        
+        # Group rooms by property
+        property_rooms = {}
+        for row in rows:
+            prop_id = row.property_id
+            if prop_id not in property_rooms:
+                property_rooms[prop_id] = []
+            property_rooms[prop_id].append({
+                'current_status': row.current_status,
+                'date_gone': row.date_gone,
+                'is_currently_listed': row.is_currently_listed
+            })
+        
+        # Calculate date_gone for each property
+        results = {}
+        for prop_id in property_ids:
+            rooms = property_rooms.get(prop_id, [])
+            
+            # Check if any rooms are currently available
+            available_rooms = [r for r in rooms if r['current_status'] == 'available' and r['is_currently_listed']]
+            
+            if available_rooms:
+                # Property has available rooms - not gone
+                results[prop_id] = None
+            else:
+                # No available rooms - find when property went offline
+                gone_dates = [r['date_gone'] for r in rooms if r['date_gone']]
+                if gone_dates:
+                    # Property went offline when the last room became unavailable
+                    latest_gone_date = max(gone_dates)
+                    results[prop_id] = latest_gone_date.isoformat()
+                else:
+                    results[prop_id] = None
+        
+        return results
     
 
 class PropertyURLCRUD:

@@ -5,7 +5,7 @@
 
 const API_BASE = process.env.NODE_ENV === 'production' 
   ? '/api' 
-  : 'http://localhost:8000/api';
+  : 'http://localhost:8001/api';
 
 // Generate or get session ID for favorites tracking
 const getSessionId = () => {

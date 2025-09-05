@@ -1,0 +1,647 @@
+#!/usr/bin/env python3
+"""
+Phase 4 Integration Script: Enhanced API Responses
+Enhances duplicate detection API responses with nearby properties context
+"""
+
+import os
+import shutil
+from pathlib import Path
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def integrate_phase4_api_enhancements():
+    """
+    Integrate Phase 4: Enhanced API Responses with nearby properties context
+    """
+    
+    logger.info("🚀 Phase 4: Enhanced API Responses")
+    
+    # Step 1: Update main.py with enhanced duplicate detection
+    update_main_py_with_enhanced_responses()
+    
+    # Step 2: Add helper functions
+    add_nearby_properties_helper()
+    
+    # Step 3: Test the integration
+    test_phase4_integration()
+    
+    logger.info("✅ Phase 4 integration completed!")
+
+def update_main_py_with_enhanced_responses():
+    """Update main.py with enhanced duplicate detection responses"""
+    
+    logger.info("📝 Updating main.py with enhanced API responses...")
+    
+    # Enhanced main.py section for duplicate detection
+    enhanced_main_code = '''
+# ================================
+# PHASE 4: ENHANCED DUPLICATE DETECTION API
+# ================================
+
+def find_nearby_properties_for_context(
+    db: Session, 
+    latitude: Optional[float], 
+    longitude: Optional[float],
+    radius_meters: int = 200,
+    exclude_property_id: str = None
+) -> List[Dict]:
+    """Find nearby properties for context in duplicate modal"""
+    
+    if not latitude or not longitude:
+        return []
+    
+    try:
+        # Simple distance calculation for nearby properties
+        nearby = db.execute(
+            text("""
+            SELECT 
+                p.id, 
+                p.address, 
+                p.url, 
+                p.latitude, 
+                p.longitude,
+                pa.advertiser_name,
+                pa.total_rooms,
+                pa.monthly_income,
+                (6371000 * acos(cos(radians(:lat)) * cos(radians(p.latitude)) * 
+                 cos(radians(p.longitude) - radians(:lng)) + sin(radians(:lat)) * 
+                 sin(radians(p.latitude)))) AS distance
+            FROM properties p
+            LEFT JOIN property_analyses pa ON p.id = pa.property_id
+            WHERE p.latitude IS NOT NULL 
+              AND p.longitude IS NOT NULL
+              AND (:exclude_id IS NULL OR p.id != :exclude_id)
+            HAVING distance <= :radius
+            ORDER BY distance
+            LIMIT 5
+            """),
+            {
+                "lat": latitude, 
+                "lng": longitude, 
+                "radius": radius_meters,
+                "exclude_id": exclude_property_id
+            }
+        ).fetchall()
+        
+        return [
+            {
+                "id": str(row.id),
+                "address": row.address or "Address not available",
+                "distance": round(row.distance),
+                "advertiser": row.advertiser_name or "Unknown",
+                "total_rooms": row.total_rooms,
+                "monthly_income": float(row.monthly_income) if row.monthly_income else None,
+                "url": row.url
+            } for row in nearby
+        ]
+    except Exception as e:
+        logger.error(f"Error finding nearby properties: {e}")
+        return []
+
+def get_existing_property_context(db: Session, property_id: str) -> Dict[str, Any]:
+    """Get context information about existing property for duplicate modal"""
+    
+    try:
+        property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+        if not property_obj:
+            return {}
+        
+        # Get latest analysis
+        latest_analysis = AnalysisCRUD.get_latest_analysis(db, property_obj.id)
+        
+        # Count URLs associated with this property
+        url_count = db.query(PropertyURL).filter(
+            PropertyURL.property_id == property_id
+        ).count()
+        
+        # Get room count and status
+        rooms = RoomCRUD.get_property_rooms(db, property_id)
+        active_rooms = [r for r in rooms if r.current_status == 'available']
+        
+        return {
+            "id": str(property_obj.id),
+            "address": property_obj.address,
+            "created_at": property_obj.created_at.isoformat() if property_obj.created_at else None,
+            "last_analysis_date": latest_analysis.analysis_date.isoformat() if latest_analysis else None,
+            "total_rooms": len(rooms),
+            "active_rooms": len(active_rooms),
+            "urls_count": url_count,
+            "monthly_income": float(latest_analysis.monthly_income) if latest_analysis and latest_analysis.monthly_income else None,
+            "advertiser_name": latest_analysis.advertiser_name if latest_analysis else None,
+            "landlord_type": latest_analysis.landlord_type if latest_analysis else None
+        }
+    except Exception as e:
+        logger.error(f"Error getting property context: {e}")
+        return {}
+
+# UPDATE THE EXISTING DUPLICATE DETECTION ENDPOINT:
+# Replace the medium confidence section (around line 200-250 in main.py) with:
+
+    elif 0.3 <= best_match.confidence_score < 0.7:
+        # PHASE 4: Enhanced duplicate response with context
+        logger.info(f"🔍 Medium confidence duplicate detected: {best_match.confidence_score:.2f}")
+        
+        # Get nearby properties for context
+        nearby_properties = find_nearby_properties_for_context(
+            db, 
+            extracted_data.get('latitude'), 
+            extracted_data.get('longitude'),
+            radius_meters=300,
+            exclude_property_id=best_match.property_id
+        )
+        
+        # Get existing property context
+        existing_property_context = get_existing_property_context(db, best_match.property_id)
+        
+        # Get estimated room count from analysis
+        estimated_rooms = extracted_data.get('estimated_room_count', 0)
+        if not estimated_rooms and extracted_data.get('rooms'):
+            estimated_rooms = len(extracted_data['rooms'])
+        
+        # Enhanced duplicate data structure
+        enhanced_duplicate_data = {
+            "potential_matches": [
+                {
+                    "property_id": best_match.property_id,
+                    "existing_url": best_match.existing_url,
+                    "address": best_match.address,
+                    "confidence_score": best_match.confidence_score,
+                    "match_factors": best_match.match_factors,
+                    "distance_meters": best_match.match_factors.get("distance_meters"),
+                    "proximity_level": best_match.match_factors.get("proximity_level", "unknown"),
+                    "recommendation": best_match.recommendation,
+                    "recommendation_reason": best_match.recommendation_reason
+                }
+            ],
+            "extracted_address": extracted_data.get('address', 'Address not extracted'),
+            "new_url": str(request.url),
+            "distance_meters": best_match.match_factors.get("distance_meters"),
+            "proximity_level": best_match.match_factors.get("proximity_level", "unknown"),
+            "confidence_explanation": generate_confidence_explanation(best_match.match_factors),
+            
+            # PHASE 4: Enhanced context information
+            "nearby_properties": nearby_properties,
+            "existing_property": existing_property_context,
+            "new_property": {
+                "estimated_rooms": estimated_rooms,
+                "extracted_data": {
+                    "address": extracted_data.get('address'),
+                    "coordinates": f"{extracted_data.get('latitude', 'N/A')}, {extracted_data.get('longitude', 'N/A')}",
+                    "advertiser": extracted_data.get('advertiser_name'),
+                    "total_income": extracted_data.get('monthly_income')
+                }
+            },
+            
+            # Decision context
+            "decision_factors": {
+                "high_confidence_factors": [
+                    factor for factor, value in best_match.match_factors.items() 
+                    if isinstance(value, (int, float)) and value > 0.8
+                ],
+                "concerns": [
+                    factor for factor, value in best_match.match_factors.items() 
+                    if isinstance(value, (int, float)) and value < 0.3
+                ],
+                "distance_analysis": analyze_distance_context(
+                    best_match.match_factors.get("distance_meters", float('inf')),
+                    nearby_properties
+                )
+            }
+        }
+        
+        return PropertyAnalysisResponse(
+            task_id=task_id,
+            status="duplicate_detected", 
+            message=f"Potential duplicate property detected (confidence: {best_match.confidence_score:.1%})",
+            duplicate_detected=True,
+            duplicate_data=enhanced_duplicate_data
+        )
+
+def generate_confidence_explanation(match_factors: Dict) -> str:
+    """Generate human-readable explanation of confidence score"""
+    
+    explanations = []
+    
+    # Address similarity
+    addr_sim = match_factors.get('address_similarity', 0)
+    if addr_sim > 0.8:
+        explanations.append("Addresses are very similar")
+    elif addr_sim > 0.6:
+        explanations.append("Addresses are somewhat similar")
+    else:
+        explanations.append("Addresses differ significantly")
+    
+    # Distance
+    distance = match_factors.get('distance_meters')
+    if distance is not None:
+        if distance <= 50:
+            explanations.append("Properties are very close (same building/block)")
+        elif distance <= 200:
+            explanations.append("Properties are nearby (walking distance)")
+        else:
+            explanations.append("Properties are relatively far apart")
+    
+    # Advertiser
+    advertiser_sim = match_factors.get('advertiser_similarity', 0)
+    if advertiser_sim > 0.8:
+        explanations.append("Same advertiser/landlord")
+    elif advertiser_sim > 0.3:
+        explanations.append("Similar advertiser names")
+    
+    return ". ".join(explanations) + "."
+
+def analyze_distance_context(distance_meters: float, nearby_properties: List[Dict]) -> Dict:
+    """Analyze distance in context of nearby properties"""
+    
+    if not distance_meters or distance_meters == float('inf'):
+        return {"analysis": "Distance not available"}
+    
+    nearby_distances = [prop["distance"] for prop in nearby_properties]
+    
+    context = {
+        "distance_meters": distance_meters,
+        "nearby_count": len(nearby_properties),
+        "analysis": ""
+    }
+    
+    if distance_meters <= 10:
+        context["analysis"] = "Same building - very likely same property"
+    elif distance_meters <= 50:
+        context["analysis"] = "Same block - could be same building with different entrances"
+    elif distance_meters <= 100:
+        context["analysis"] = "Same street - possible same property or landlord portfolio"
+    elif distance_meters <= 300:
+        context["analysis"] = "Same neighborhood - less likely to be duplicate"
+    else:
+        context["analysis"] = "Different areas - unlikely to be duplicate"
+    
+    # Add context about other nearby properties
+    if nearby_distances:
+        avg_nearby = sum(nearby_distances) / len(nearby_distances)
+        if distance_meters < avg_nearby:
+            context["analysis"] += f" (Closer than average of {len(nearby_properties)} nearby properties)"
+    
+    return context
+'''
+    
+    # Write instructions for manual integration
+    integration_file = Path("phase4_main_py_updates.txt")
+    with open(integration_file, "w") as f:
+        f.write(enhanced_main_code)
+    
+    logger.info(f"📄 Enhanced main.py code written to: {integration_file}")
+    logger.info("⚠️  Manual integration required - see integration instructions")
+
+def add_nearby_properties_helper():
+    """Add helper module for nearby properties functionality"""
+    
+    helper_code = '''# nearby_properties_helper.py
+"""
+Phase 4: Helper functions for nearby properties context
+"""
+
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+import logging
+
+logger = logging.getLogger(__name__)
+
+def calculate_property_density(
+    db: Session,
+    latitude: float,
+    longitude: float,
+    radius_meters: int = 500
+) -> Dict[str, Any]:
+    """Calculate property density in area for context"""
+    
+    try:
+        density_query = db.execute(
+            text("""
+            SELECT 
+                COUNT(*) as total_properties,
+                COUNT(DISTINCT pa.advertiser_name) as unique_advertisers,
+                AVG(pa.monthly_income) as avg_income,
+                AVG(pa.total_rooms) as avg_rooms
+            FROM properties p
+            LEFT JOIN property_analyses pa ON p.id = pa.property_id
+            WHERE p.latitude IS NOT NULL 
+              AND p.longitude IS NOT NULL
+              AND (6371000 * acos(cos(radians(:lat)) * cos(radians(p.latitude)) * 
+                   cos(radians(p.longitude) - radians(:lng)) + sin(radians(:lat)) * 
+                   sin(radians(p.latitude)))) <= :radius
+            """),
+            {"lat": latitude, "lng": longitude, "radius": radius_meters}
+        ).fetchone()
+        
+        if density_query:
+            return {
+                "total_properties": density_query.total_properties or 0,
+                "unique_advertisers": density_query.unique_advertisers or 0,
+                "avg_monthly_income": float(density_query.avg_income) if density_query.avg_income else None,
+                "avg_rooms": float(density_query.avg_rooms) if density_query.avg_rooms else None,
+                "radius_meters": radius_meters,
+                "density_per_km2": round((density_query.total_properties or 0) / (3.14159 * (radius_meters/1000)**2), 2)
+            }
+        
+        return {"total_properties": 0, "radius_meters": radius_meters}
+        
+    except Exception as e:
+        logger.error(f"Error calculating property density: {e}")
+        return {"error": str(e)}
+
+def find_landlord_portfolio_properties(
+    db: Session,
+    advertiser_name: str,
+    limit: int = 10
+) -> List[Dict]:
+    """Find other properties by same landlord/advertiser"""
+    
+    if not advertiser_name or len(advertiser_name) < 3:
+        return []
+    
+    try:
+        portfolio_query = db.execute(
+            text("""
+            SELECT DISTINCT
+                p.id,
+                p.address,
+                p.postcode,
+                pa.total_rooms,
+                pa.monthly_income,
+                pa.created_at
+            FROM properties p
+            JOIN property_analyses pa ON p.id = pa.property_id
+            WHERE LOWER(pa.advertiser_name) ILIKE LOWER(:advertiser)
+            ORDER BY pa.created_at DESC
+            LIMIT :limit
+            """),
+            {"advertiser": f"%{advertiser_name}%", "limit": limit}
+        ).fetchall()
+        
+        return [
+            {
+                "property_id": str(row.id),
+                "address": row.address,
+                "postcode": row.postcode,
+                "total_rooms": row.total_rooms,
+                "monthly_income": float(row.monthly_income) if row.monthly_income else None,
+                "added_date": row.created_at.isoformat() if row.created_at else None
+            }
+            for row in portfolio_query
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error finding portfolio properties: {e}")
+        return []
+
+def get_area_market_context(
+    db: Session,
+    postcode_prefix: str,
+    property_type: str = "hmo"
+) -> Dict[str, Any]:
+    """Get market context for the area"""
+    
+    try:
+        # Extract first part of postcode (e.g., "OX1" from "OX1 2AB")
+        area_prefix = postcode_prefix.split()[0] if postcode_prefix else ""
+        
+        market_query = db.execute(
+            text("""
+            SELECT 
+                COUNT(*) as total_properties,
+                AVG(pa.monthly_income) as avg_income,
+                MIN(pa.monthly_income) as min_income,
+                MAX(pa.monthly_income) as max_income,
+                AVG(pa.total_rooms) as avg_rooms,
+                COUNT(DISTINCT pa.advertiser_name) as unique_landlords
+            FROM properties p
+            JOIN property_analyses pa ON p.id = pa.property_id
+            WHERE p.postcode ILIKE :area_pattern
+              AND pa.monthly_income IS NOT NULL
+            """),
+            {"area_pattern": f"{area_prefix}%"}
+        ).fetchone()
+        
+        if market_query and market_query.total_properties > 0:
+            return {
+                "area": area_prefix,
+                "total_properties": market_query.total_properties,
+                "avg_monthly_income": float(market_query.avg_income) if market_query.avg_income else None,
+                "income_range": {
+                    "min": float(market_query.min_income) if market_query.min_income else None,
+                    "max": float(market_query.max_income) if market_query.max_income else None
+                },
+                "avg_rooms": float(market_query.avg_rooms) if market_query.avg_rooms else None,
+                "unique_landlords": market_query.unique_landlords,
+                "market_activity": "high" if market_query.total_properties > 50 else "medium" if market_query.total_properties > 20 else "low"
+            }
+        
+        return {"area": area_prefix, "total_properties": 0}
+        
+    except Exception as e:
+        logger.error(f"Error getting market context: {e}")
+        return {"error": str(e)}
+'''
+    
+    helper_file = Path("nearby_properties_helper.py")
+    with open(helper_file, "w") as f:
+        f.write(helper_code)
+    
+    logger.info(f"📄 Helper functions created: {helper_file}")
+
+def test_phase4_integration():
+    """Test Phase 4 integration"""
+    
+    logger.info("🧪 Testing Phase 4 integration...")
+    
+    # Create test script
+    test_code = '''# test_phase4.py
+"""
+Test script for Phase 4 enhanced API responses
+"""
+
+import requests
+import json
+
+def test_enhanced_duplicate_response():
+    """Test enhanced duplicate detection API"""
+    
+    print("🧪 Testing Phase 4 Enhanced API Responses")
+    print("=" * 50)
+    
+    # Test with a property that might have duplicates
+    test_url = "https://www.spareroom.co.uk/flatshare/flatshare_detail.pl?flatshare_id=15555667"
+    
+    try:
+        response = requests.post(
+            "http://localhost:8001/api/analyze",
+            json={"url": test_url},
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get("duplicate_detected"):
+                print("✅ Duplicate detected - checking enhanced response...")
+                
+                duplicate_data = data.get("duplicate_data", {})
+                
+                # Check Phase 4 enhancements
+                enhancements = {
+                    "nearby_properties": "nearby_properties" in duplicate_data,
+                    "existing_property_context": "existing_property" in duplicate_data,
+                    "new_property_context": "new_property" in duplicate_data,
+                    "decision_factors": "decision_factors" in duplicate_data,
+                    "confidence_explanation": "confidence_explanation" in duplicate_data
+                }
+                
+                for feature, present in enhancements.items():
+                    status = "✅" if present else "❌"
+                    print(f"  {status} {feature}")
+                
+                # Show sample nearby properties
+                nearby = duplicate_data.get("nearby_properties", [])
+                if nearby:
+                    print(f"\\n📍 Found {len(nearby)} nearby properties:")
+                    for prop in nearby[:3]:  # Show first 3
+                        print(f"  • {prop.get('address', 'N/A')} ({prop.get('distance', 'N/A')}m)")
+                
+                print("\\n✅ Phase 4 enhanced response working!")
+                
+            else:
+                print("ℹ️  No duplicates detected - try with different URL")
+                
+        else:
+            print(f"❌ API request failed: {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+
+if __name__ == "__main__":
+    test_enhanced_duplicate_response()
+'''
+    
+    test_file = Path("test_phase4.py")
+    with open(test_file, "w") as f:
+        f.write(test_code)
+    
+    logger.info(f"🧪 Test script created: {test_file}")
+
+def print_integration_instructions():
+    """Print manual integration instructions"""
+    
+    instructions = """
+# 📋 PHASE 4 INTEGRATION INSTRUCTIONS
+
+## 🔧 MANUAL INTEGRATION REQUIRED:
+
+### 1. UPDATE MAIN.PY:
+   • Open your main.py file
+   • Find the duplicate detection section (around line 200-250)
+   • Look for the medium confidence elif block:
+     elif 0.3 <= best_match.confidence_score < 0.7:
+   • Replace the entire elif block with the enhanced version from:
+     phase4_main_py_updates.txt
+
+### 2. ADD IMPORTS:
+   Add to the top of main.py:
+   ```python
+   from sqlalchemy import text
+   ```
+
+### 3. COPY HELPER FUNCTIONS:
+   • The helper functions are in: nearby_properties_helper.py
+   • You can either:
+     - Copy them into main.py, OR
+     - Import from the helper file
+
+### 4. TEST THE INTEGRATION:
+   • Run: python test_phase4.py
+   • Try analyzing a property that might have duplicates
+   • Check that the modal shows enhanced information
+
+## 🎯 PHASE 4 ENHANCEMENTS NOW INCLUDE:
+
+✅ **Nearby Properties Context**
+   • Shows other properties within 200-300m
+   • Includes distance, advertiser, room count
+   • Helps users understand the area density
+
+✅ **Enhanced Property Context**
+   • Existing property: creation date, room count, URL count
+   • New property: estimated rooms, extracted data
+   • Better comparison information
+
+✅ **Decision Factors Analysis**
+   • High confidence factors highlighted
+   • Concerns and low confidence factors shown
+   • Distance analysis with context
+
+✅ **Confidence Explanations**
+   • Human-readable explanations
+   • "Addresses are very similar. Properties are very close. Same advertiser."
+   • Helps users understand why the system flagged it
+
+✅ **Distance Context**
+   • "Same building - very likely same property"
+   • "Same neighborhood - less likely duplicate"
+   • Contextual analysis based on nearby properties
+
+## 🎨 MODAL WILL NOW DISPLAY:
+   • 🏘️ Nearby properties section
+   • 📊 Enhanced context comparison
+   • 🎯 Decision factors breakdown
+   • 💡 Confidence explanations
+   • 📏 Distance analysis with recommendations
+
+💡 **The enhanced modal from Phase 3 is already designed to display this data!**
+"""
+    
+    print(instructions)
+
+if __name__ == "__main__":
+    print("🚀 Phase 4: Enhanced API Responses")
+    print("=" * 50)
+    print("\nThis will enhance your duplicate detection API with:")
+    print("• 📍 Nearby properties context (shows other properties in area)")
+    print("• 📊 Enhanced property comparison data")
+    print("• 🎯 Decision factors analysis")
+    print("• 💡 Confidence explanations in plain English")
+    print("• 🏘️ Area market context and density")
+    
+    confirm = input("\nGenerate Phase 4 enhanced API components? (y/N): ").lower().strip()
+    
+    if confirm == 'y':
+        integrate_phase4_api_enhancements()
+        print_integration_instructions()
+        
+        print("\n" + "=" * 50)
+        print("🎉 PHASE 4 INTEGRATION READY!")
+        print("=" * 50)
+        print("\n✨ Your enhanced API responses are ready!")
+        print("\n📂 Files created:")
+        print("  • phase4_main_py_updates.txt (enhanced main.py code)")
+        print("  • nearby_properties_helper.py (helper functions)")
+        print("  • test_phase4.py (test script)")
+        
+        print("\n🚀 Next steps:")
+        print("  1. Follow the integration instructions above")
+        print("  2. Update main.py with enhanced duplicate detection")
+        print("  3. Test with: python test_phase4.py")
+        
+        print("\n🎯 Your duplicate modal will now show:")
+        print("  • 🏘️ Nearby properties (shows area context)")
+        print("  • 📊 Enhanced property comparisons")
+        print("  • 💡 Plain English confidence explanations")
+        print("  • 🎯 Decision factors breakdown")
+        print("  • 📏 Smart distance analysis")
+        
+        print("\n✅ Ready to move to Phase 5 after integration!")
+        
+    else:
+        print("❌ Phase 4 integration cancelled")

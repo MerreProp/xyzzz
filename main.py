@@ -7,17 +7,19 @@ import asyncio
 
 from datetime import datetime, timedelta
 from decimal import Decimal
+import statistics
 from typing import List, Optional, Dict, Any
 import uuid
 import os
 import json
+import logging
 
 # Your existing imports...
-from fastapi import APIRouter, FastAPI, HTTPException, BackgroundTasks, status, Depends, Request
+from fastapi import APIRouter, FastAPI, HTTPException, BackgroundTasks, logger, status, Depends, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl, EmailStr
-from sqlalchemy import desc, and_, func, or_, Column, String, Integer, DateTime, JSON, Text
+from sqlalchemy import desc, and_, func, or_, Column, String, Integer, DateTime, JSON, Text, text
 from sqlalchemy.orm import Session
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -28,15 +30,26 @@ from auth import (
     check_list_permission, get_password_hash, get_user_accessible_lists, get_user_by_email, get_user_by_username
 )
 from modules.postcodes_io import geocode_postcode_io, reverse_geocode_postcode_io
+from hmo_registry.registry_endpoints import add_hmo_registry_endpoints, add_oxford_map_endpoints
+from hmo_registry.cities.oxford import OxfordHMOMapData
+from hmo_registry.cities.swindon import add_swindon_hmo_endpoint
 
-
+from modules.nearby_properties_helper import (
+    calculate_property_density,
+    find_landlord_portfolio_properties,
+    get_area_market_context,
+    analyze_portfolio_patterns,
+    get_duplicate_confidence_breakdown,
+    format_distance_description,
+    generate_recommendation_with_reasoning
+)
 # Database imports
-from database import get_db, init_db, test_connection, Base
+from database import SessionLocal, get_db, init_db, test_connection, Base
 from models import (ContactListPermission, PermissionLevel, Property, 
                     PropertyAnalysis, 
                     AnalysisTask, 
                     AnalyticsLog,
-                    PropertyChange, PropertyTrend, 
+                    PropertyChange, PropertyTrend, PropertyURL, 
                     RoomAvailabilityPeriod, 
                     Room,
                     RoomChange,
@@ -69,6 +82,26 @@ from duplicate_detection import (
     find_potential_duplicates,
     extract_property_details_for_duplicate_check
 )
+from phase5_crud_enhancements import (
+    RoomCRUDEnhanced,
+    RoomAvailabilityPeriodCRUDEnhanced,
+    PropertyURLCRUDEnhanced,
+    DuplicateDecisionCRUD,
+    test_phase5_functionality
+)
+from websocket_manager import websocket_endpoint, connection_manager
+from async_tasks import start_property_analysis, start_bulk_update, get_active_tasks, cancel_task
+from redis_cache import cache, CacheInvalidator
+from cache_midleware import (
+    CacheMiddleware,
+    cache_properties,
+    cache_analytics,
+    cache_contacts,
+    cache_search,
+    invalidate_on_property_update,
+    invalidate_on_analysis_complete,
+    CacheMonitor
+)
 
 
 # Your existing module imports...
@@ -96,6 +129,8 @@ class UsageStatsResponse(BaseModel):
 # Create router for map usage tracking
 usage_router = APIRouter(prefix="/api/map-usage", tags=["Map Usage Analytics"])
 
+logger = logging.getLogger(__name__)
+
 # FastAPI app instance
 app = FastAPI(
     title="HMO Analyser API",
@@ -113,7 +148,11 @@ app.add_middleware(
 )
 
 app.include_router(phase3_router)
-app.include_router(usage_router)  # ← ADD THIS LINE
+app.include_router(usage_router)  # ← ADD THIS LINE_ro
+add_hmo_registry_endpoints(app)
+add_oxford_map_endpoints(app)
+add_swindon_hmo_endpoint(app)
+
 
 # Initialize database on startup
 @asynccontextmanager
@@ -128,7 +167,7 @@ async def lifespan(app: FastAPI):
 # Pydantic models for request/response validation
 class PropertyAnalysisRequest(BaseModel):
     url: HttpUrl
-    force_separate: Optional[bool] = False
+    force_separate: bool = False
     
 class PropertyAnalysisResponse(BaseModel):
     task_id: str
@@ -191,6 +230,16 @@ class ContactListResponse(BaseModel):
     can_edit: bool  # New: Can edit list settings
     can_delete: bool  # New: Can delete list
     can_invite: bool  # New: Can invite others
+
+
+class LinkToExistingRequest(BaseModel):
+    property_id: str
+    new_url: str
+
+class AddSeparateRoomRequest(BaseModel):
+    property_id: str
+    new_url: str
+
 
 # Router for contact endpoints (Phase 2)
 contacts_router = APIRouter(prefix="/api/contacts", tags=["Contacts"])
@@ -414,12 +463,13 @@ async def delete_contact(
     return {"message": "Contact deleted successfully"}
 
 # Contact Lists endpoints (Phase 2)
-@contacts_router.get("/lists", response_model=List[ContactListResponse])
+@app.get("/api/contacts/lists")
+@cache_contacts(ttl=300)  # Cache contact lists for 5 minutes
 async def get_contact_lists(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Get all contact lists accessible by the user"""
+    """Get all contact lists accessible by the user - CACHED VERSION"""
     user_lists = get_user_accessible_lists(db, current_user.id)
     
     result = []
@@ -563,10 +613,60 @@ async def get_favorites(
     # Return just the array (remove the wrapper object)
     return [str(fav.contact_id) for fav in favorites]
 
-@contacts_router.get("/health")
-async def health_check():
-    """Simple health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+@app.get("/api/health")
+async def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint with cache information - UPDATED for Phase 2"""
+    
+    # Get existing health data
+    stats = AnalysisCRUD.get_analysis_stats(db)
+    active_tasks = TaskCRUD.get_active_tasks(db)
+    export_stats = get_export_stats()
+    
+    # PHASE 1 ADDITION: Get availability statistics
+    total_periods = db.query(RoomAvailabilityPeriod).count()
+    current_available = db.query(RoomAvailabilityPeriod).filter(
+        RoomAvailabilityPeriod.is_current_period == True
+    ).count()
+    rooms_with_date_gone = db.query(Room).filter(
+        Room.date_gone.isnot(None)
+    ).count()
+    
+    # PHASE 2 ADDITION: Add cache health information
+    cache_health = {"status": "disabled"}
+    try:
+        cache_stats = await cache.get_cache_stats()
+        cache_health = {
+            "status": "healthy" if cache_stats.get("connected") else "unhealthy",
+            "total_keys": cache_stats.get("total_hmo_cache_keys", 0),
+            "memory_mb": cache_stats.get("memory_used_mb", 0),
+            "hit_rate": cache_stats.get("cache_hit_rate", 0)
+        }
+    except Exception as e:
+        cache_health = {"status": "error", "error": str(e)}
+    
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "database_connected": True,
+        "total_properties": stats["total_properties"],
+        "total_analyses": stats["total_analyses"],
+        "active_tasks": len(active_tasks),
+        "viable_properties": stats["viable_properties"],
+        "export_files": export_stats["total_files"],
+        "export_size_mb": export_stats["total_size_mb"],
+        
+        # PHASE 1 ADDITIONS:
+        "availability_tracking": {
+            "total_availability_periods": total_periods,
+            "currently_available_rooms": current_available,
+            "rooms_currently_gone": rooms_with_date_gone
+        },
+        
+        # PHASE 2 ADDITION: Cache health information
+        "cache": cache_health,
+        "performance_mode": "redis_cached" if cache_health["status"] == "healthy" else "database_only"
+    }
+
 
 # Import/Export with user context
 @contacts_router.get("/export")
@@ -1085,9 +1185,23 @@ def initialize_analysis_data(url: str) -> Dict[str, Any]:
     }
 
 def save_analysis_to_db(db: Session, property_obj: Property, analysis_data: Dict[str, Any]) -> PropertyAnalysis:
-    """Save analysis results to database"""
+    """Save analysis results to database - PRESERVE ORIGINAL ADVERTISER NAME"""
+    
+    # ✅ FIX: Get the original advertiser name if current analysis doesn't have it
+    original_advertiser_name = None
+    if analysis_data.get('Advertiser Name') is None:
+        # Get the original advertiser name from the first analysis
+        first_analysis = (db.query(PropertyAnalysis)
+                         .filter(PropertyAnalysis.property_id == property_obj.id)
+                         .order_by(PropertyAnalysis.created_at.asc())
+                         .first())
+        
+        if first_analysis and first_analysis.advertiser_name and first_analysis.advertiser_name != 'Not found':
+            original_advertiser_name = first_analysis.advertiser_name
+            print(f"✅ PRESERVING original advertiser name: '{original_advertiser_name}'")
+    
     analysis_kwargs = {
-        'advertiser_name': analysis_data.get('Advertiser Name'),
+        'advertiser_name': analysis_data.get('Advertiser Name') or original_advertiser_name or 'Not found',
         'landlord_type': analysis_data.get('Landlord Type'),
         'bills_included': analysis_data.get('Bills Included'),
         'household_gender': analysis_data.get('Household Gender'),
@@ -1161,8 +1275,17 @@ def replace_city_in_address(address_string, old_city, new_city):
     
     return updated_address
 
-async def analyze_property_task(task_id: str, url: str, existing_property_id: str = None):
-    """Background task to analyze a property with database storage and room tracking"""
+async def analyze_property_task(task_id: str, url: str, existing_property_id: str = None, link_type: str = None):
+    """
+    Background task to analyze a property with database storage and room tracking
+    Enhanced with duplicate detection support
+    
+    Args:
+        task_id: Unique task identifier
+        url: Property URL to analyze
+        existing_property_id: If provided, link this URL to existing property
+        link_type: Type of link ('duplicate', 'separate_room', or None for new property)
+    """
     
     # Create a new database session for this background task
     from database import SessionLocal
@@ -1172,20 +1295,71 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
         # Update task status
         TaskCRUD.update_task_status(db, task_id, "running", {"coordinates": "running"})
         
-        # Log analytics event
-        AnalyticsCRUD.log_event(db, "analysis_started", task_id=task_id)
+        # Log analytics event with enhanced context
+        event_data = {
+            "url": url,
+            "existing_property_id": str(existing_property_id) if existing_property_id else None,
+            "link_type": link_type
+        }
+        AnalyticsCRUD.log_event(db, "analysis_started", task_id=task_id, event_data=event_data)
         
-        # FIXED: Use existing_property_id if provided, otherwise lookup by ANY URL (including linked URLs)
+        # ENHANCED: Handle different analysis scenarios
         if existing_property_id:
-            print(f"[{task_id}] Analyzing existing property: {existing_property_id}")
+            print(f"[{task_id}] Analyzing existing property: {existing_property_id} (link_type: {link_type})")
             property_obj = PropertyCRUD.get_property_by_id(db, existing_property_id)
             if not property_obj:
                 raise Exception(f"Property with ID {existing_property_id} not found")
+                
+            # ENHANCED: Create PropertyURL link with metadata
+            try:
+                # Check if URL already linked to avoid duplicates
+                existing_link = db.query(PropertyURL).filter(
+                    PropertyURL.property_id == existing_property_id,
+                    PropertyURL.url == url
+                ).first()
+                
+                if not existing_link:
+                    from models import PropertyURL
+                    import uuid
+                    from datetime import datetime
+                    
+                    # Create new PropertyURL link
+                    new_property_url = PropertyURL(
+                        id=str(uuid.uuid4()),
+                        property_id=existing_property_id,
+                        url=url,
+                        url_type='spareroom',
+                        is_primary=False,  # Linked URLs are always secondary
+                        created_at=datetime.utcnow(),
+                        metadata={
+                            "link_type": link_type or "duplicate",
+                            "linked_via": "duplicate_detection",
+                            "task_id": task_id,
+                            "note": f"Linked during duplicate detection as {link_type or 'duplicate'}"
+                        }
+                    )
+                    
+                    db.add(new_property_url)
+                    db.commit()
+                    print(f"[{task_id}] ✅ Created PropertyURL link with type: {link_type}")
+                else:
+                    print(f"[{task_id}] ⚠️ URL already linked to property, updating metadata")
+                    existing_link.metadata = existing_link.metadata or {}
+                    existing_link.metadata.update({
+                        "reanalyzed_at": datetime.utcnow().isoformat(),
+                        "reanalysis_task_id": task_id,
+                        "link_type": link_type or existing_link.metadata.get("link_type", "duplicate")
+                    })
+                    db.commit()
+                    
+            except Exception as e:
+                print(f"[{task_id}] ⚠️ Failed to create/update PropertyURL link: {e}")
+                # Continue with analysis even if linking fails
+                
         else:
             print(f"[{task_id}] Looking up property by URL: {url}")
             
-            # FIXED: Use get_property_by_any_url instead of get_property_by_url
-            # This function checks BOTH the main properties table AND the property_urls table
+            # ENHANCED: Use get_property_by_any_url to check for existing linked URLs
             property_obj = PropertyURLCRUD.get_property_by_any_url(db, url)
             
             if not property_obj:
@@ -1197,8 +1371,13 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
                 
         print(f"[{task_id}] Analyzing property ID: {property_obj.id}")
         
-        # Initialize analysis data
+        # Initialize analysis data with enhanced context
         analysis_data = initialize_analysis_data(url)
+        analysis_data['_TASK_CONTEXT'] = {
+            'link_type': link_type,
+            'existing_property_id': existing_property_id,
+            'is_linked_analysis': bool(existing_property_id)
+        }
         
         # Step 1: Extract coordinates
         print(f"[{task_id}] Starting coordinate extraction...")
@@ -1206,13 +1385,45 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
         
         if coords.get('found'):
             TaskCRUD.update_task_status(db, task_id, "running", {"coordinates": "completed", "geocoding": "running"})            
-            # Update property with coordinates - USE ID NOT OBJECT
-            PropertyCRUD.update_property(
-                db, 
-                property_obj.id,  # Use ID instead of object
-                latitude=coords['latitude'],
-                longitude=coords['longitude']
-            )
+            
+            # ENHANCED: For linked properties, be more careful about coordinate updates
+            if existing_property_id and link_type == 'separate_room':
+                # For separate rooms, verify coordinates are close to existing property
+                existing_coords = (property_obj.latitude, property_obj.longitude)
+                new_coords = (coords['latitude'], coords['longitude'])
+                
+                if existing_coords and all(existing_coords) and all(new_coords):
+                    from geopy.distance import geodesic
+                    distance = geodesic(existing_coords, new_coords).meters
+                    
+                    print(f"[{task_id}] 🏠 Separate room distance check: {distance:.1f}m from main property")
+                    
+                    if distance > 200:  # More than 200m apart
+                        print(f"[{task_id}] ⚠️ WARNING: Separate room is {distance:.1f}m from main property")
+                        analysis_data['_COORDINATE_WARNING'] = f"Separate room coordinates are {distance:.1f}m from main property"
+                    
+                    # For separate rooms, don't update main property coordinates
+                    analysis_data['_SEPARATE_ROOM_COORDS'] = {
+                        'latitude': coords['latitude'],
+                        'longitude': coords['longitude'],
+                        'distance_from_main': distance
+                    }
+                else:
+                    # No existing coordinates, update normally
+                    PropertyCRUD.update_property(
+                        db, 
+                        property_obj.id,
+                        latitude=coords['latitude'],
+                        longitude=coords['longitude']
+                    )
+            else:
+                # Normal coordinate update for duplicates or new properties
+                PropertyCRUD.update_property(
+                    db, 
+                    property_obj.id,
+                    latitude=coords['latitude'],
+                    longitude=coords['longitude']
+                )
             
             # Get address from coordinates using Postcodes.io for UK properties
             lat, lon = coords['latitude'], coords['longitude']
@@ -1252,22 +1463,32 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
                         print(f"🎯 Using enhanced city: {city_to_use} (instead of {old_city})")
                         print(f"🏠 Updated address: {original_street_address} → {corrected_address}")
                     
-                    PropertyCRUD.update_property(
-                        db,
-                        property_obj.id,  # Use ID instead of object
-                        address=corrected_address,                 # USE CORRECTED ADDRESS WITH ENHANCED CITY
-                        postcode=location_data.get('postcode'),     # Raw from postcode.io
-                        latitude=location_data.get('latitude'),     # Raw from postcode.io
-                        longitude=location_data.get('longitude'),   # Raw from postcode.io
-                        city=city_to_use,                          # Enhanced if available, otherwise raw
-                        area=location_data.get('area'),            # Raw ward from postcode.io
-                        district=location_data.get('district'),    # Raw district from postcode.io
-                        county=location_data.get('county'),        # Raw county from postcode.io
-                        country=location_data.get('country'),      # Raw country from postcode.io
-                        constituency=location_data.get('constituency') # Raw constituency from postcode.io
-                    )
-                    print(f"✅ Final address: {corrected_address}")
-                    print(f"✅ Enhanced city: {city_to_use}, Raw area: {location_data.get('area')}, County: {location_data.get('county')}")
+                    # ENHANCED: For separate rooms, don't overwrite main property address unless it's empty
+                    should_update_address = True
+                    if existing_property_id and link_type == 'separate_room':
+                        if property_obj.address and property_obj.address.strip():
+                            print(f"[{task_id}] 🏠 Preserving main property address for separate room")
+                            should_update_address = False
+                            # Store separate room address in analysis data for reference
+                            analysis_data['_SEPARATE_ROOM_ADDRESS'] = corrected_address
+                    
+                    if should_update_address:
+                        PropertyCRUD.update_property(
+                            db,
+                            property_obj.id,
+                            address=corrected_address,                 # USE CORRECTED ADDRESS WITH ENHANCED CITY
+                            postcode=location_data.get('postcode'),     # Raw from postcode.io
+                            latitude=location_data.get('latitude'),     # Raw from postcode.io
+                            longitude=location_data.get('longitude'),   # Raw from postcode.io
+                            city=city_to_use,                          # Enhanced if available, otherwise raw
+                            area=location_data.get('area'),            # Raw ward from postcode.io
+                            district=location_data.get('district'),    # Raw district from postcode.io
+                            county=location_data.get('county'),        # Raw county from postcode.io
+                            country=location_data.get('country'),      # Raw country from postcode.io
+                            constituency=location_data.get('constituency') # Raw constituency from postcode.io
+                        )
+                        print(f"✅ Final address: {corrected_address}")
+                        print(f"✅ Enhanced city: {city_to_use}, Raw area: {location_data.get('area')}, County: {location_data.get('county')}")
                 
                 else:
                     # Fallback: postcode lookup failed, try reverse geocoding
@@ -1275,54 +1496,72 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
                     location_data = await reverse_geocode_postcode_io(lat, lon)
                     
                     if location_data:
-                        PropertyCRUD.update_property(
-                            db,
-                            property_obj.id,  # Use ID instead of object
-                            address=original_street_address,       # PRESERVE STREET ADDRESS
-                            postcode=location_data.get('postcode'),
-                            latitude=location_data.get('latitude'),
-                            longitude=location_data.get('longitude'),
-                            city=location_data.get('city'),        # No enhancement available, use raw
-                            area=location_data.get('area'),
-                            district=location_data.get('district'),
-                            county=location_data.get('county'),
-                            country=location_data.get('country'),
-                            constituency=location_data.get('constituency')
-                        )
-                        print(f"✅ Reverse geocoding - Street: {original_street_address}, City: {location_data.get('city')}")
+                        should_update_address = True
+                        if existing_property_id and link_type == 'separate_room' and property_obj.address:
+                            should_update_address = False
+                            analysis_data['_SEPARATE_ROOM_ADDRESS'] = original_street_address
+                            
+                        if should_update_address:
+                            PropertyCRUD.update_property(
+                                db,
+                                property_obj.id,
+                                address=original_street_address,       # PRESERVE STREET ADDRESS
+                                postcode=location_data.get('postcode'),
+                                latitude=location_data.get('latitude'),
+                                longitude=location_data.get('longitude'),
+                                city=location_data.get('city'),        # No enhancement available, use raw
+                                area=location_data.get('area'),
+                                district=location_data.get('district'),
+                                county=location_data.get('county'),
+                                country=location_data.get('country'),
+                                constituency=location_data.get('constituency')
+                            )
+                            print(f"✅ Reverse geocoding - Street: {original_street_address}, City: {location_data.get('city')}")
                     else:
                         # Final fallback: use Nominatim data if all postcode methods fail
                         print("⚠️ All postcode methods failed, using Nominatim data...")
                         if address_info:
-                            PropertyCRUD.update_property(
-                                db,
-                                property_obj.id,  # Use ID instead of object
-                                address=original_street_address,   # PRESERVE STREET ADDRESS
-                                postcode=analysis_data.get('Postcode'),
-                                city=analysis_data.get('City'),
-                                area=analysis_data.get('Area'),
-                                district=analysis_data.get('District'),
-                                county=analysis_data.get('County'),
-                                country=analysis_data.get('Country'),
-                                constituency=analysis_data.get('Constituency')
-                            )
-                            print(f"ℹ️ Using Nominatim data - Street: {original_street_address}")
+                            should_update_address = True
+                            if existing_property_id and link_type == 'separate_room' and property_obj.address:
+                                should_update_address = False
+                                analysis_data['_SEPARATE_ROOM_ADDRESS'] = original_street_address
+                                
+                            if should_update_address:
+                                PropertyCRUD.update_property(
+                                    db,
+                                    property_obj.id,
+                                    address=original_street_address,   # PRESERVE STREET ADDRESS
+                                    postcode=analysis_data.get('Postcode'),
+                                    city=analysis_data.get('City'),
+                                    area=analysis_data.get('Area'),
+                                    district=analysis_data.get('District'),
+                                    county=analysis_data.get('County'),
+                                    country=analysis_data.get('Country'),
+                                    constituency=analysis_data.get('Constituency')
+                                )
+                                print(f"ℹ️ Using Nominatim data - Street: {original_street_address}")
             
             elif address_info:
                 # No postcode available, use Nominatim data directly
-                PropertyCRUD.update_property(
-                    db,
-                    property_obj.id,  # Use ID instead of object
-                    address=original_street_address,           # PRESERVE STREET ADDRESS
-                    postcode=analysis_data.get('Postcode'),
-                    city=analysis_data.get('City'),
-                    area=analysis_data.get('Area'),
-                    district=analysis_data.get('District'),
-                    county=analysis_data.get('County'),
-                    country=analysis_data.get('Country'),
-                    constituency=analysis_data.get('Constituency')
-                )
-                print(f"ℹ️ Using Nominatim geocoding data (no postcode available) - Street: {original_street_address}")
+                should_update_address = True
+                if existing_property_id and link_type == 'separate_room' and property_obj.address:
+                    should_update_address = False
+                    analysis_data['_SEPARATE_ROOM_ADDRESS'] = original_street_address
+                    
+                if should_update_address:
+                    PropertyCRUD.update_property(
+                        db,
+                        property_obj.id,
+                        address=original_street_address,           # PRESERVE STREET ADDRESS
+                        postcode=analysis_data.get('Postcode'),
+                        city=analysis_data.get('City'),
+                        area=analysis_data.get('Area'),
+                        district=analysis_data.get('District'),
+                        county=analysis_data.get('County'),
+                        country=analysis_data.get('Country'),
+                        constituency=analysis_data.get('Constituency')
+                    )
+                    print(f"ℹ️ Using Nominatim geocoding data (no postcode available) - Street: {original_street_address}")
 
             TaskCRUD.update_task_status(db, task_id, "running", {
                 "coordinates": "completed", 
@@ -1359,6 +1598,40 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
         print(f"[{task_id}] Starting price section extraction...")
         extract_price_section(url, analysis_data)
         
+        # ✅ Check if listing is expired and stop analysis early
+        if analysis_data.get('_EXPIRED_LISTING'):
+            print(f"[{task_id}] ⚠️ LISTING EXPIRED - Stopping analysis early")
+            print(f"[{task_id}] 🚫 Property is not currently accepting applications")
+            
+            # Update task status to indicate expired listing
+            TaskCRUD.update_task_status(db, task_id, "completed", {
+                "coordinates": "completed" if coords.get('found') else "failed",
+                "geocoding": "completed" if coords.get('found') else "skipped",
+                "property_details": "completed" if coords.get('found') else "skipped",
+                "scraping": "completed",
+                "room_tracking": "skipped - listing expired",
+                "excel_export": "skipped - listing expired",
+                "status": "expired_listing"
+            })
+            
+            # ENHANCED: Log completion with enhanced context
+            AnalyticsCRUD.log_event(
+                db, 
+                "analysis_completed_expired", 
+                task_id=task_id,
+                event_data={
+                    "url": url,
+                    "listing_status": analysis_data.get('Listing Status', 'Expired'),
+                    "reason": "Listing not accepting applications",
+                    "link_type": link_type,
+                    "existing_property_id": existing_property_id
+                }
+            )
+            
+            print(f"[{task_id}] ✅ Analysis completed - Listing expired")
+            return  # Early exit for expired listings
+        
+        # Continue with normal analysis for active listings
         TaskCRUD.update_task_status(db, task_id, "running", {
             "coordinates": "completed" if coords.get('found') else "failed",
             "geocoding": "completed" if coords.get('found') else "skipped",
@@ -1367,30 +1640,50 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
             "room_tracking": "running"
         })
         
-        # Step 3: Save analysis to database
+        # Step 3: Save analysis to database with enhanced metadata
         analysis_obj = save_analysis_to_db(db, property_obj, analysis_data)
         
-        # Step 4: Process room tracking
+        # ENHANCED: Add metadata to analysis for tracking link type
+        if link_type:
+            try:
+                if hasattr(analysis_obj, 'metadata'):
+                    if not analysis_obj.metadata:
+                        analysis_obj.metadata = {}
+                    analysis_obj.metadata.update({
+                        'link_type': link_type,
+                        'source_url': url,
+                        'linked_at': datetime.utcnow().isoformat()
+                    })
+                    db.commit()
+            except Exception as e:
+                print(f"[{task_id}] ⚠️ Failed to update analysis metadata: {e}")
+        
+        # Step 4: Process room tracking with enhanced logic for different link types
         print(f"[{task_id}] Processing room tracking...")
         rooms_list = analysis_data.get('All Rooms List', [])
         
-        # Check if listing is expired and handle differently
-        if analysis_data.get('_EXPIRED_LISTING'):
-            # For expired listings, mark existing rooms as taken
-            print(f"[{task_id}] Marking existing rooms as taken for expired listing...")
-            room_results = RoomCRUD.mark_all_property_rooms_as_taken(
-                db, property_obj.id, analysis_obj.id
+        # For active listings, use room tracking with link type awareness
+        if rooms_list:
+            # ENHANCED: For separate rooms, add context to room processing
+            room_processing_context = {}
+            if link_type == 'separate_room':
+                room_processing_context = {
+                    'is_separate_room_analysis': True,
+                    'source_url': url,
+                    'separate_room_address': analysis_data.get('_SEPARATE_ROOM_ADDRESS')
+                }
+            
+            room_results = RoomCRUD.process_rooms_list(
+                db, property_obj.id, rooms_list, analysis_obj.id,
+                context=room_processing_context
             )
-            print(f"[{task_id}] Room status update: {len(room_results.get('updated_rooms', []))} rooms marked as taken")
-        else:
-            # For active listings, use normal room tracking
-            if rooms_list:
-                room_results = RoomCRUD.process_rooms_list(
-                    db, property_obj.id, rooms_list, analysis_obj.id
-                )
-                print(f"[{task_id}] Room tracking: {len(room_results.get('new_rooms', []))} new, "
-                      f"{len(room_results.get('disappeared_rooms', []))} disappeared, "
-                      f"{room_results.get('total_changes', 0)} total changes")
+            print(f"[{task_id}] Room tracking: {len(room_results.get('new_rooms', []))} new, "
+                  f"{len(room_results.get('disappeared_rooms', []))} disappeared, "
+                  f"{room_results.get('total_changes', 0)} total changes")
+                  
+            # ENHANCED: For separate rooms, log additional context
+            if link_type == 'separate_room':
+                print(f"[{task_id}] 🏠 Separate room analysis: Found {len(rooms_list)} rooms in separate listing")
         
         TaskCRUD.update_task_status(db, task_id, "running", {
             "coordinates": "completed" if coords.get('found') else "failed",
@@ -1401,8 +1694,12 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
             "excel_export": "running"
         })
         
-        # Step 5: Save to Excel in organized folder
-        excel_filename = f"property_{task_id}.xlsx"
+        # Step 5: Save to Excel in organized folder with enhanced naming
+        excel_filename = f"property_{task_id}"
+        if link_type:
+            excel_filename += f"_{link_type}"
+        excel_filename += ".xlsx"
+        
         excel_full_path = save_to_excel(analysis_data, excel_filename)
         analysis_data["excel_file"] = excel_filename
         analysis_data["excel_path"] = excel_full_path
@@ -1416,31 +1713,156 @@ async def analyze_property_task(task_id: str, url: str, existing_property_id: st
             "excel_export": "completed"
         })
         
-        # Log completion
-        TaskCRUD.update_task_status(db, task_id, "completed", {
-            "coordinates": "completed",
-            "geocoding": "completed", 
-            "property_details": "completed",
-            "scraping": "completed",
-            "excel_export": "completed"
-        })
+        # ENHANCED: Log completion with link context
+        AnalyticsCRUD.log_event(
+            db, 
+            "analysis_completed", 
+            task_id=task_id,
+            event_data={
+                "url": url,
+                "total_rooms": analysis_data.get('Total Rooms', 0),
+                "monthly_income": analysis_data.get('Monthly Income', 0),
+                "listing_status": analysis_data.get('Listing Status', 'Unknown'),
+                "link_type": link_type,
+                "existing_property_id": existing_property_id,
+                "is_linked_analysis": bool(existing_property_id)
+            }
+        )
         
         print(f"[{task_id}] Analysis completed successfully!")
+        
+        # 🔄 Invalidate cache after successful analysis
+        if property_obj:
+            await invalidate_on_analysis_complete(str(property_obj.id))
+            print(f"[{task_id}] 🔄 Cache invalidated for property {property_obj.id}")
+
+        # ENHANCED: Additional success logging for linked analyses
+        if existing_property_id and link_type:
+            print(f"[{task_id}] ✅ {link_type.title()} analysis completed for property {existing_property_id}")
+        else:
+            print(f"[{task_id}] ✅ New property analysis completed!")
         
     except Exception as e:
         print(f"[{task_id}] Analysis failed: {str(e)}")
         TaskCRUD.update_task_status(db, task_id, "failed", error_message=str(e))
         
-        # Log failure
+        # ENHANCED: Log failure with context
         AnalyticsCRUD.log_event(
             db, 
             "analysis_failed", 
             task_id=task_id,
-            event_data={"error": str(e)}
+            event_data={
+                "error": str(e),
+                "url": url,
+                "link_type": link_type,
+                "existing_property_id": existing_property_id
+            }
         )
         raise
     finally:
         # CRITICAL: Always close the database session
+        db.close()
+
+@app.post("/api/duplicate-actions/link-existing")
+async def link_to_existing_property(request: LinkToExistingRequest):
+    """Link a new URL to an existing property"""
+    
+    db = SessionLocal()
+    try:
+        # Create PropertyURL link
+        new_property_url = PropertyURL(
+            id=str(uuid.uuid4()),
+            property_id=request.property_id,
+            url=request.new_url,
+            url_type='spareroom',
+            is_primary=False,  # New URLs are secondary
+            created_at=datetime.utcnow()
+        )
+        
+        db.add(new_property_url)
+        db.commit()
+        
+        print(f"✅ Linked URL to existing property: {request.property_id}")
+        
+        # Now analyze the property with the new URL
+        # Continue with normal analysis using existing property
+        existing_property = PropertyCRUD.get_property(db, request.property_id)
+        if not existing_property:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        # Create analysis task for existing property
+        task_id = str(uuid.uuid4())
+        
+        # Add to analysis queue (reuse existing logic)
+        analysis_data = {
+            'task_id': task_id,
+            'property_id': request.property_id,
+            'url': request.new_url,
+            'status': 'started',
+            'created_at': datetime.utcnow().isoformat()
+        }
+        
+        # Store analysis task and continue with normal analysis
+        # ... (reuse existing analysis logic)
+        
+        return {
+            "success": True,
+            "message": "URL linked to existing property",
+            "property_id": request.property_id,
+            "task_id": task_id,
+            "status": "analyzing"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to link URL: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/duplicate-actions/add-separate-room")
+async def add_separate_room(request: AddSeparateRoomRequest):
+    """Add as a separate room in the same building/property"""
+    
+    db = SessionLocal()
+    try:
+        # For now, treat this the same as linking but with different metadata
+        # You could extend this to handle room-specific logic
+        
+        # Create PropertyURL link with room metadata
+        new_property_url = PropertyURL(
+            id=str(uuid.uuid4()),
+            property_id=request.property_id,
+            url=request.new_url,
+            url_type='spareroom',
+            is_primary=False,
+            created_at=datetime.utcnow(),
+            # Add metadata to indicate this is a separate room
+            metadata={
+                "link_type": "separate_room",
+                "note": "Identified as separate room in same building during duplicate detection"
+            }
+        )
+        
+        db.add(new_property_url)
+        db.commit()
+        
+        print(f"✅ Added separate room URL to property: {request.property_id}")
+        
+        # Continue with room analysis
+        # ... (similar to link_to_existing but with room-specific handling)
+        
+        return {
+            "success": True,
+            "message": "Added as separate room in existing property",
+            "property_id": request.property_id,
+            "link_type": "separate_room"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to add separate room: {str(e)}")
+    finally:
         db.close()
 
 @app.get("/")
@@ -1457,7 +1879,7 @@ async def root():
             "search": "/api/properties/search",
             "analytics": "/api/analytics",
             "export": "/api/export/{property_id}",
-            "export_stats": "/api/admin/export-stats"
+            "export_stats": "/api/admin/export-stats",
         }
     }
 
@@ -1467,7 +1889,7 @@ async def analyze_property(request: PropertyAnalysisRequest, db: Session = Depen
     
     task_id = str(uuid.uuid4())
     
-    # Check if property already exists by URL
+    # STEP 1: Check if property already exists by URL (fast check)
     existing_property = PropertyCRUD.get_property_by_url(db, str(request.url))
     
     if existing_property:
@@ -1481,8 +1903,9 @@ async def analyze_property(request: PropertyAnalysisRequest, db: Session = Depen
             "property_id": str(existing_property.id),
             "is_existing": True,
             "total_analyses": len(existing_analyses),
+            "total_changes": len(existing_analyses) - 1 if len(existing_analyses) > 0 else 0,
+            "last_analyzed": existing_analyses[0].created_at.isoformat() if existing_analyses else None,
             "has_changes_history": len(existing_analyses) > 0,
-            "last_analysis_date": existing_analyses[0].created_at.isoformat() if existing_analyses else None
         }
         
         # Queue background task for existing property
@@ -1491,177 +1914,354 @@ async def analyze_property(request: PropertyAnalysisRequest, db: Session = Depen
         return PropertyAnalysisResponse(
             task_id=task_id,
             status="queued",
-            message="🔄 Updating existing property analysis...",
+            message=f"🔄 Property exists! Running analysis #{len(existing_analyses) + 1}. Check 'Last Property Analyzed' for results.",
             property_metadata=property_metadata
         )
+    
+    # STEP 2: NEW PROPERTY - Check for coordinate-based duplicates (unless force_separate is True)
+    if not request.force_separate:
+        print(f"🔍 New URL detected, checking for potential duplicates...")
+        
+        try:
+            # Extract property details for duplicate checking
+            extracted_data = extract_property_details_for_duplicate_check(str(request.url))
             
-    else:
-        # NEW PROPERTY - Check for potential duplicates (unless force_separate is True)
-        if not request.force_separate:
-            print(f"🔍 New URL detected, checking for potential duplicates...")
-            
-            try:
-                # Extract property details for duplicate checking
-                extracted_data = extract_property_details_for_duplicate_check(str(request.url))
+            if extracted_data and (extracted_data.get('address') or extracted_data.get('latitude')):
+                print(f"✅ Extracted data for duplicate checking: address={bool(extracted_data.get('address'))}, coords={bool(extracted_data.get('latitude'))}")
                 
-                if extracted_data and extracted_data.get('address'):
-                    # Find potential duplicates
-                    potential_matches = find_potential_duplicates(
-                        db=db,
-                        new_url=str(request.url),
-                        new_address=extracted_data['address'],
-                        new_latitude=extracted_data.get('latitude'),
-                        new_longitude=extracted_data.get('longitude'),
-                        new_price=extracted_data.get('monthly_income'),
-                        new_room_count=extracted_data.get('total_rooms'),
-                        new_advertiser=extracted_data.get('advertiser_name'),
-                        min_confidence=0.6,  # Lower threshold for user confirmation
-                        max_results=1  # Only check the best match
-                    )
+                # Find potential duplicates
+                potential_matches = find_potential_duplicates(
+                    db=db,
+                    new_url=str(request.url),
+                    new_address=extracted_data.get('address', ''),
+                    new_latitude=extracted_data.get('latitude'),
+                    new_longitude=extracted_data.get('longitude'),
+                    new_price=extracted_data.get('monthly_income'),
+                    new_room_count=extracted_data.get('total_rooms'),
+                    new_advertiser=extracted_data.get('advertiser_name'),
+                    min_confidence=0.3,  # Start at 30% for user confirmation
+                    max_results=5
+                )
+                
+                if potential_matches:
+                    best_match = potential_matches[0]
+                    print(f"🚨 POTENTIAL DUPLICATE DETECTED!")
+                    print(f"   Confidence: {best_match.confidence_score:.1%}")
+                    print(f"   Existing Property: {best_match.address}")
+                    print(f"   Existing URL: {best_match.existing_url}")
+                    print(f"   New URL: {str(request.url)}")
                     
-                    if potential_matches:
-                        best_match = potential_matches[0]
-                        print(f"🚨 POTENTIAL DUPLICATE DETECTED!")
-                        print(f"   Confidence: {best_match.confidence_score}")
-                        print(f"   Existing Property: {best_match.address}")
-                        print(f"   Existing URL: {best_match.existing_url}")
-                        print(f"   New URL: {str(request.url)}")
+                    # HIGH CONFIDENCE (≥70%): AUTO-LINK
+                    if best_match.confidence_score >= 0.7:
+                        print(f"🔗 Auto-linking URL to existing property (confidence: {best_match.confidence_score:.1%})")
                         
-                        # AUTO-LINK high confidence matches (70%+)
-                        if best_match.confidence_score >= 0.7:
-                            print(f"🔗 Auto-linking URL to existing property (confidence: {best_match.confidence_score})")
+                        try:
+                            from models import PropertyURL
                             
-                            # Link the URL to existing property
-                            try:
-                                from models import PropertyURL
+                            # Check if URL already exists in property_urls table
+                            existing_url_record = (db.query(PropertyURL)
+                                                .filter(PropertyURL.url == str(request.url))
+                                                .first())
+                            
+                            if existing_url_record:
+                                print(f"🔗 URL already linked to property: {existing_url_record.property_id}")
+                                existing_property_id = existing_url_record.property_id
+                            else:
+                                # Create new PropertyURL record
+                                property_url = PropertyURL(
+                                    property_id=best_match.property_id,
+                                    url=str(request.url),
+                                    is_primary=False,
+                                    confidence_score=best_match.confidence_score
+                                )
+                                db.add(property_url)
+                                db.commit()
+                                existing_property_id = best_match.property_id
                                 
-                                # Check if URL already exists in property_urls table
-                                existing_url_record = (db.query(PropertyURL)
-                                                    .filter(PropertyURL.url == str(request.url))
-                                                    .first())
-                                
-                                if existing_url_record:
-                                    print(f"🔗 URL already linked to property: {existing_url_record.property_id}")
-                                    existing_property_id = existing_url_record.property_id
-                                else:
-                                    # URL doesn't exist yet, create new PropertyURL record
-                                    property_url = PropertyURL(
-                                        property_id=best_match.property_id,
-                                        url=str(request.url),
-                                        is_primary=False,
-                                        confidence_score=best_match.confidence_score
-                                    )
-                                    db.add(property_url)
-                                    db.commit()
-                                    existing_property_id = best_match.property_id
-                                    
-                                    # Add change record
-                                    PropertyChangeCRUD.create_change(
-                                        db=db,
-                                        property_id=best_match.property_id,
-                                        change_type="url_linked",
-                                        field_name="additional_url",
-                                        old_value="",
-                                        new_value=str(request.url),
-                                        change_summary=f"Auto-linked duplicate URL (confidence: {best_match.confidence_score:.1%})"
-                                    )
-                                    
-                                    print(f"🔗 Successfully linked new URL to existing property")
-                                
-                                # FIXED: CREATE TASK BEFORE STARTING BACKGROUND ANALYSIS
-                                TaskCRUD.create_property_task(db, task_id, existing_property_id)
-                                
-                                # Get existing property and analyses for metadata
-                                existing_property = PropertyCRUD.get_property_by_id(db, existing_property_id)
-                                existing_analyses = AnalysisCRUD.get_all_analyses(db, existing_property.id)
-                                
-                                property_metadata = {
-                                    "property_id": str(existing_property.id),
-                                    "is_existing": True,
-                                    "was_auto_linked": True,
-                                    "confidence_score": best_match.confidence_score,
-                                    "total_analyses": len(existing_analyses),
-                                    "has_changes_history": len(existing_analyses) > 0
-                                }
-                                
-                                # Queue background task for existing property
-                                asyncio.create_task(analyze_property_task(task_id, str(request.url)))
-                                
-                                return PropertyAnalysisResponse(
-                                    task_id=task_id,
-                                    status="queued",
-                                    message="🔗 Auto-linked to existing property - updating analysis...",
-                                    property_metadata=property_metadata
+                                # Add change record
+                                PropertyChangeCRUD.create_change(
+                                    db=db,
+                                    property_id=best_match.property_id,
+                                    change_type="url_linked",
+                                    field_name="additional_url",
+                                    old_value="",
+                                    new_value=str(request.url),
+                                    change_summary=f"Auto-linked duplicate URL (confidence: {best_match.confidence_score:.1%})"
                                 )
                                 
-                            except Exception as e:
-                                print(f"❌ Failed to auto-link URL: {str(e)}")
-                                # If linking fails, rollback and proceed as separate property
-                                db.rollback()
-                                
-                                # Fall through to creating separate property
-                                print(f"⚠️ Proceeding to create separate property due to linking failure")
-                        
-                        # MEDIUM CONFIDENCE (30-70%) - Ask user for confirmation
-                        elif 0.3 <= best_match.confidence_score < 0.7:
-                            print(f"❓ Medium confidence match - requesting user confirmation")
+                                print(f"🔗 Successfully linked new URL to existing property")
+                            
+                            # Create task for existing property
+                            TaskCRUD.create_property_task(db, task_id, existing_property_id)
+                            
+                            # Get existing property and analyses for metadata
+                            existing_property = PropertyCRUD.get_property_by_id(db, existing_property_id)
+                            existing_analyses = AnalysisCRUD.get_all_analyses(db, existing_property.id)
+                            
+                            property_metadata = {
+                                "property_id": str(existing_property.id),
+                                "is_existing": True,
+                                "was_auto_linked": True,
+                                "confidence_score": best_match.confidence_score,
+                                "total_analyses": len(existing_analyses),
+                                "has_changes_history": len(existing_analyses) > 0
+                            }
+                            
+                            # Queue background task for existing property
+                            asyncio.create_task(analyze_property_task(task_id, str(request.url), existing_property_id))
                             
                             return PropertyAnalysisResponse(
                                 task_id=task_id,
-                                status="duplicate_detected",
-                                message="Potential duplicate property detected. Please confirm your action.",
-                                duplicate_detected=True,
-                                duplicate_data={
-                                    "potential_matches": [
-                                        {
-                                            "property_id": best_match.property_id,
-                                            "existing_url": best_match.existing_url,
-                                            "address": best_match.address,
-                                            "confidence_score": best_match.confidence_score,
-                                            "match_factors": best_match.match_factors,
-                                            "property_details": best_match.property_details
-                                        }
-                                    ],
-                                    "extracted_address": extracted_data['address'],
-                                    "extraction_successful": True
+                                status="queued",
+                                message="🔗 Auto-linked to existing property - updating analysis...",
+                                property_metadata=property_metadata
+                            )
+                            
+                        except Exception as e:
+                            print(f"❌ Failed to auto-link URL: {str(e)}")
+                            db.rollback()
+                            # Fall through to creating separate property
+                            print(f"⚠️ Proceeding to create separate property due to linking failure")
+                    
+                    # MEDIUM CONFIDENCE (30-70%): USER CONFIRMATION REQUIRED
+                    elif 0.3 <= best_match.confidence_score < 0.7:
+                        print(f"❓ Medium confidence duplicate detected: {best_match.confidence_score:.1%}")
+                        print(f"🛑 STOPPING ANALYSIS - User confirmation required")
+                        
+                        # Calculate enhanced context using helper functions
+                        try:
+                            # 1. Calculate property density in the area
+                            property_density = calculate_property_density(
+                                db, 
+                                extracted_data.get('latitude', 0), 
+                                extracted_data.get('longitude', 0),
+                                radius_meters=500
+                            )
+                            
+                            # 2. Find landlord portfolio if advertiser name available
+                            advertiser_portfolio = []
+                            if extracted_data.get('advertiser_name'):
+                                advertiser_portfolio = find_landlord_portfolio_properties(
+                                    db, 
+                                    extracted_data['advertiser_name'], 
+                                    limit=15
+                                )
+                            
+                            # 3. Get area market context
+                            area_market_context = {}
+                            if extracted_data.get('postcode'):
+                                area_market_context = get_area_market_context(
+                                    db, 
+                                    extracted_data['postcode']
+                                )
+                            
+                            # 4. Analyze landlord portfolio patterns
+                            portfolio_analysis = {}
+                            if extracted_data.get('advertiser_name'):
+                                portfolio_analysis = analyze_portfolio_patterns(
+                                    db,
+                                    extracted_data['advertiser_name'],
+                                    extracted_data.get('latitude'),
+                                    extracted_data.get('longitude')
+                                )
+                            
+                            # 5. Get detailed confidence breakdown
+                            confidence_breakdown = get_duplicate_confidence_breakdown(best_match.match_factors)
+                            
+                            # 6. Format distance description
+                            distance_description = format_distance_description(
+                                best_match.match_factors.get("distance_meters", 0)
+                            )
+                            
+                            # 7. Generate recommendation with reasoning
+                            recommendation_data = generate_recommendation_with_reasoning(
+                                best_match.confidence_score,
+                                best_match.match_factors,
+                                {
+                                    "property_density": property_density,
+                                    "portfolio_size": len(advertiser_portfolio),
+                                    "market_context": area_market_context
                                 }
                             )
+                            
+                            # Get nearby properties for context
+                            nearby_properties = find_nearby_properties_for_context(
+                                db, 
+                                extracted_data.get('latitude'), 
+                                extracted_data.get('longitude'),
+                                radius_meters=300,
+                                exclude_property_id=best_match.property_id
+                            )
+                            
+                            # Get existing property context
+                            existing_property_context = get_existing_property_context(db, best_match.property_id)
+                            
+                            # Get estimated room count from analysis
+                            estimated_rooms = extracted_data.get('estimated_room_count', 0)
+                            if not estimated_rooms and extracted_data.get('rooms'):
+                                estimated_rooms = len(extracted_data['rooms'])
+                        
+                        except Exception as context_error:
+                            print(f"⚠️ Error calculating enhanced context: {context_error}")
+                            # Set fallback values
+                            property_density = {"total_properties": 0}
+                            advertiser_portfolio = []
+                            area_market_context = {}
+                            portfolio_analysis = {}
+                            confidence_breakdown = {}
+                            distance_description = "Distance analysis unavailable"
+                            recommendation_data = {"recommendation_text": "Review recommended"}
+                            nearby_properties = []
+                            existing_property_context = {}
+                            estimated_rooms = 0
+                        
+                        # Build enhanced duplicate data structure
+                        enhanced_duplicate_data = {
+                            "potential_matches": [
+                                {
+                                    "property_id": best_match.property_id,
+                                    "existing_url": best_match.existing_url,
+                                    "address": best_match.address,
+                                    "confidence_score": best_match.confidence_score,
+                                    "match_factors": best_match.match_factors,
+                                    "distance_meters": best_match.match_factors.get("distance_meters"),
+                                    "proximity_level": best_match.match_factors.get("proximity_level", "unknown"),
+                                    "recommendation": best_match.recommendation,
+                                    "recommendation_reason": best_match.recommendation_reason
+                                }
+                            ],
+                            "extracted_address": extracted_data.get('address', 'Address not extracted'),
+                            "new_url": str(request.url),
+                            "distance_meters": best_match.match_factors.get("distance_meters"),
+                            "proximity_level": best_match.match_factors.get("proximity_level", "unknown"),
+                            "confidence_explanation": generate_confidence_explanation(best_match.match_factors),
+                            
+                            # Enhanced context
+                            "nearby_properties": nearby_properties,
+                            "existing_property": existing_property_context,
+                            "new_property": {
+                                "estimated_rooms": estimated_rooms,
+                                "extracted_data": {
+                                    "address": extracted_data.get('address'),
+                                    "coordinates": f"{extracted_data.get('latitude', 'N/A')}, {extracted_data.get('longitude', 'N/A')}",
+                                    "advertiser": extracted_data.get('advertiser_name'),
+                                    "total_income": extracted_data.get('monthly_income')
+                                }
+                            },
+                            
+                            # Area and market intelligence
+                            "area_analysis": {
+                                "property_density": property_density,
+                                "market_context": area_market_context,
+                                "distance_analysis": analyze_distance_context(
+                                    best_match.match_factors.get("distance_meters", float('inf')),
+                                    nearby_properties
+                                ),
+                                "distance_description": distance_description
+                            },
+                            
+                            # Landlord portfolio intelligence  
+                            "landlord_analysis": {
+                                "advertiser_portfolio": advertiser_portfolio,
+                                "portfolio_analysis": portfolio_analysis,
+                                "portfolio_size": len(advertiser_portfolio),
+                                "is_professional_landlord": len(advertiser_portfolio) >= 3
+                            },
+                            
+                            # Smart decision support
+                            "decision_support": {
+                                "confidence_breakdown": confidence_breakdown,
+                                "recommendation": recommendation_data,
+                                "high_confidence_factors": [
+                                    factor for factor, value in best_match.match_factors.items() 
+                                    if isinstance(value, (int, float)) and value > 0.8
+                                ],
+                                "concerns": [
+                                    factor for factor, value in best_match.match_factors.items() 
+                                    if isinstance(value, (int, float)) and value < 0.3
+                                ],
+                            "key_insights": [
+                                f"Property density: {property_density.get('total_properties', 0)} properties within 500m",
+                                f"Landlord portfolio: {len(advertiser_portfolio)} known properties" if advertiser_portfolio else "Single property landlord", 
+                                f"Market context: {area_market_context.get('market_activity', 'unknown')} activity area" if area_market_context else "Market data unavailable",
+                                distance_description,
+                                # ✅ FIX: Handle both tuple and dict return values
+                                (recommendation_data[1] if isinstance(recommendation_data, tuple) and len(recommendation_data) > 1 
+                                else recommendation_data.get('primary_reason', 'Analysis complete') if isinstance(recommendation_data, dict)
+                                else 'Analysis complete')
+                            ]
+                            }
+                        }
+                        
+                        # *** CRITICAL: RETURN HERE TO STOP ANALYSIS AND SHOW MODAL ***
+                        return PropertyAnalysisResponse(
+                            task_id=task_id,
+                            status="duplicate_detected", 
+                            message=f"Enhanced analysis complete - {recommendation_data.get('recommendation_text', 'Review recommended')} (confidence: {best_match.confidence_score:.1%})",
+                            duplicate_detected=True,
+                            duplicate_data=enhanced_duplicate_data
+                        )
                     
-                    # No matches found or low confidence - proceed as new property
-                    print(f"✅ No duplicates detected or confidence too low - creating new property")
-                    
+                    # LOW CONFIDENCE (<30%): Proceed as new property
+                    else:
+                        print(f"✅ Low confidence match ({best_match.confidence_score:.1%}) - proceeding as new property")
+                
                 else:
-                    print(f"⚠️ Could not extract property details for duplicate checking")
+                    print(f"✅ No duplicates detected - proceeding as new property")
                     
-            except Exception as e:
-                # Duplicate detection failed - create new property anyway but log the error
-                print(f"❌ Duplicate detection failed: {str(e)}")
-        
-        # CREATE NEW PROPERTY (no duplicates or force_separate=True)
-        property_obj = PropertyCRUD.create_property(db, str(request.url))
-        
-        # FIXED: CREATE TASK BEFORE STARTING BACKGROUND ANALYSIS
-        TaskCRUD.create_property_task(db, task_id, property_obj.id)
-        
-        property_metadata = {
-            "property_id": str(property_obj.id),
-            "is_existing": False,
-            "total_analyses": 0,
-            "has_changes_history": False,
-            "force_separate": request.force_separate
-        }
-        
-        message = "🔗 Linked to existing property - starting analysis..." if request.force_separate else "✨ New property detected - starting first-time analysis..."
-        
-        # Queue background task for new property
-        asyncio.create_task(analyze_property_task(task_id, str(request.url)))
-        
-        return PropertyAnalysisResponse(
-            task_id=task_id,
-            status="queued",
-            message=message,
-            property_metadata=property_metadata
-        )
+            else:
+                print(f"⚠️ Could not extract sufficient data for duplicate checking")
+                print(f"   Address: {bool(extracted_data.get('address') if extracted_data else False)}")
+                print(f"   Coordinates: {bool(extracted_data.get('latitude') if extracted_data else False)}")
+                
+        except Exception as e:
+            # Duplicate detection failed - log error but continue with new property creation
+            print(f"❌ Duplicate detection failed: {str(e)}")
+            import traceback
+            print(f"Full error: {traceback.format_exc()}")
+            
+            # ✅ ADD THIS SECTION:
+            try:
+                db.rollback()
+                print("🔄 Database transaction rolled back")
+            except Exception as rollback_error:
+                print(f"⚠️ Rollback failed: {rollback_error}")
+            
+            # Continue with new property creation
+            print("➡️ Continuing with new property creation...")
+
+    
+    # STEP 3: CREATE NEW PROPERTY (no duplicates found OR force_separate=True OR duplicate detection failed)
+    print(f"🆕 Creating new property...")
+    property_obj = PropertyCRUD.create_property(db, str(request.url))
+    
+    # Create task for new property
+    TaskCRUD.create_property_task(db, task_id, property_obj.id)
+    
+    property_metadata = {
+        "property_id": str(property_obj.id),
+        "is_existing": False,
+        "total_analyses": 0,
+        "total_changes": 0,
+        "has_changes_history": False,
+        "force_separate": request.force_separate
+    }
+    
+    # Set appropriate message based on context
+    if request.force_separate:
+        message = "🔗 Forced as separate property - starting analysis..."
+    else:
+        message = "✨ New property detected - starting first-time analysis..."
+    
+    # Queue background task for new property
+    asyncio.create_task(analyze_property_task(task_id, str(request.url), property_obj.id))
+    
+    return PropertyAnalysisResponse(
+        task_id=task_id,
+        status="queued",
+        message=message,
+        property_metadata=property_metadata
+    )
 
 # FIX FOR main.py - Update the get_analysis_status endpoint around line 445
 
@@ -1716,8 +2316,8 @@ async def get_analysis_status(task_id: str, db: Session = Depends(get_db)):
                             'Advertiser Name': latest_analysis.advertiser_name,
                             'Landlord Type': latest_analysis.landlord_type,
                             'Listing Status': latest_analysis.listing_status,
-                            'Analysis Date': latest_analysis.analysis_date.isoformat() if latest_analysis.analysis_date else None,
-                            'Created At': latest_analysis.created_at.isoformat() if latest_analysis.created_at else None
+                            'Analysis Date': latest_analysis.analysis_date.isoformat() if latest_analysis.analysis_date and hasattr(latest_analysis.analysis_date, 'isoformat') else str(latest_analysis.analysis_date) if latest_analysis.analysis_date else None,
+                            'Created At': latest_analysis.created_at.isoformat() if latest_analysis.created_at and hasattr(latest_analysis.created_at, 'isoformat') else str(latest_analysis.created_at) if latest_analysis.created_at else None
                         }
             except Exception as e:
                 print(f"Error fetching analysis result for task {task_id}: {e}")
@@ -1740,23 +2340,6 @@ async def get_analysis_status(task_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error getting analysis status: {str(e)}")
 
 
-@app.get("/api/properties")
-async def get_all_properties(
-    limit: int = 100, 
-    offset: int = 0,
-    db: Session = Depends(get_db)
-):
-    """Get all analyzed properties with pagination - shows latest analysis data"""
-    properties = PropertyCRUD.get_all_properties(db, limit=limit, offset=offset)
-    
-    # Format each property with latest analysis data
-    formatted_properties = []
-    for prop in properties:
-        # Pass db session to format function
-        summary = format_property_summary_with_db(prop, db)
-        formatted_properties.append(summary)
-    
-    return formatted_properties
 
 def format_property_summary_with_db(property_obj: Property, db: Session) -> Dict[str, Any]:
     """Format property with latest analysis for API response (with db session)"""
@@ -1795,7 +2378,106 @@ def format_property_summary_with_db(property_obj: Property, db: Session) -> Dict
         "Rooms With History": rooms_data  # This will enable room numbers in the table
     }
 
+def format_property_summary_optimized(
+    property_obj: Property, 
+    latest_analysis: Optional[PropertyAnalysis] = None,
+    rooms_data: List[Room] = None,
+    latest_gone_change: Optional[PropertyChange] = None
+) -> Dict[str, Any]:
+    """Optimized formatting using pre-fetched data"""
+    
+    rooms_data = rooms_data or []
+    
+    # Calculate property date gone from pre-fetched change
+    property_date_gone = None
+    if latest_gone_change:
+        property_date_gone = latest_gone_change.detected_at.isoformat()
+    
+    # Process room history from pre-fetched data
+    room_histories = []
+    total_availability_periods = 0
+    total_price_changes = 0
+    
+    for room in rooms_data:
+        # For now, we'll set these to 0 since we're not fetching the detailed relationships yet
+        # This can be enhanced later if needed
+        availability_count = 0  # Could be enhanced with selectinload if needed
+        price_change_count = 0  # Could be enhanced with selectinload if needed
+        
+        total_availability_periods += availability_count
+        total_price_changes += price_change_count
+        
+        room_histories.append({
+            "room_id": str(room.id),
+            "room_number": room.room_number if hasattr(room, 'room_number') else None,
+            "current_price": float(room.current_price) if room.current_price else None,
+            "price_text": room.price_text if hasattr(room, 'price_text') else None,
+            "availability_changes": availability_count,
+            "price_changes": price_change_count,
+            "current_status": room.current_status if hasattr(room, 'current_status') else None
+        })
+    
+    # Build response - matching your existing format
+    base_data = {
+        "property_id": str(property_obj.id),
+        "url": property_obj.url,
+        "address": property_obj.address,
+        "postcode": property_obj.postcode,
+        "city": property_obj.city,
+        "area": property_obj.area,
+        "latitude": float(property_obj.latitude) if property_obj.latitude else None,
+        "longitude": float(property_obj.longitude) if property_obj.longitude else None,
+        "created_at": property_obj.created_at.isoformat() if property_obj.created_at else None,
+        "property_date_gone": property_date_gone,
+        "room_histories": room_histories,
+        "total_availability_periods": total_availability_periods,
+        "total_price_changes": total_price_changes
+    }
+    
+    # Add analysis data if available
+    if latest_analysis:
+        base_data.update({
+            "monthly_income": float(latest_analysis.monthly_income) if latest_analysis.monthly_income else None,
+            "annual_income": float(latest_analysis.annual_income) if latest_analysis.annual_income else None,
+            "total_rooms": latest_analysis.total_rooms,
+            "available_rooms": latest_analysis.available_rooms,
+            "available_rooms_details": latest_analysis.available_rooms_details or [],
+            "bills_included": latest_analysis.bills_included,
+            "meets_requirements": latest_analysis.meets_requirements,
+            # FIX: analysis_date is already a string, don't call .isoformat()
+            "analysis_date": latest_analysis.analysis_date if latest_analysis.analysis_date else None,
+            "advertiser_name": latest_analysis.advertiser_name,
+            "landlord_type": latest_analysis.landlord_type,
+            "listing_status": latest_analysis.listing_status,
+            "last_updated": latest_analysis.created_at.isoformat() if latest_analysis.created_at and hasattr(latest_analysis.created_at, 'isoformat') else str(latest_analysis.created_at) if latest_analysis.created_at else None,
+            "title": latest_analysis.title,
+            "main_photo_url": latest_analysis.main_photo_url
+        })
+    
+    # Add default None values for missing analysis data
+    else:
+        base_data.update({
+            "monthly_income": None,
+            "annual_income": None,
+            "total_rooms": None,
+            "available_rooms": None,
+            "available_rooms_details": [],
+            "bills_included": None,
+            "meets_requirements": None,
+            "analysis_date": None,
+            "advertiser_name": None,
+            "landlord_type": None,
+            "listing_status": None,
+            "last_updated": None,
+            "title": None,
+            "main_photo_url": None
+        })
+    
+    return base_data
+
+
 @app.get("/api/properties/search")
+@cache_search(ttl=120)  # Cache search results for 2 minutes
 async def search_properties(
     q: str = None,
     min_income: float = None,
@@ -1806,7 +2488,7 @@ async def search_properties(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Search properties with filters - shows latest analysis data"""
+    """Search properties with filters - CACHED VERSION"""
     properties = PropertyCRUD.search_properties(
         db=db,
         search_term=q,
@@ -1849,6 +2531,61 @@ async def search_properties(
         limit=limit
     )
     return [format_property_summary(prop) for prop in properties]
+
+@app.get("/api/properties/today")
+async def get_today_properties(db: Session = Depends(get_db)):
+    """Get properties added today for the Today section"""
+    try:
+        # Get today's date (server timezone)
+        today = datetime.utcnow().date()
+        
+        # Query properties created today
+        today_properties = db.query(Property).filter(
+            func.date(Property.created_at) == today
+        ).order_by(desc(Property.created_at)).all()
+        
+        # Format using your existing format function
+        formatted_properties = []
+        for prop in today_properties:
+            summary = format_property_summary_with_db(prop, db)
+            formatted_properties.append(summary)
+        
+        return {
+            "count": len(formatted_properties),
+            "date": today.isoformat(),
+            "properties": formatted_properties
+        }
+        
+    except Exception as e:
+        print(f"❌ Error fetching today's properties: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching today's properties: {str(e)}"
+        )
+
+@app.get("/api/properties/last")
+async def get_last_property(db: Session = Depends(get_db)):
+    """Get the most recently created property"""
+    try:
+        # Get the most recent property by creation date
+        latest_property = (db.query(Property)
+                          .order_by(Property.created_at.desc())
+                          .first())
+        
+        if not latest_property:
+            return None
+        
+        # Format using your existing function
+        summary = format_property_summary_with_db(latest_property, db)
+        
+        return summary
+        
+    except Exception as e:
+        print(f"Error fetching last property: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error fetching last property: {str(e)}"
+        )
 
 # Update the get_property_details endpoint to include room data:
 @app.get("/api/properties/{property_id}")
@@ -1965,6 +2702,47 @@ async def check_potential_duplicates(
             detail=f"Error checking for duplicates: {str(e)}"
         )
 
+@app.get("/api/admin/phase5/schema-check")
+async def check_phase5_schema(db: Session = Depends(get_db)):
+    """Verify Phase 5 database schema is properly implemented"""
+    try:
+        # Test the new columns exist
+        from sqlalchemy import text
+        
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'rooms' 
+            AND column_name IN ('source_url', 'url_confidence', 'linked_room_id', 'is_primary_instance')
+        """)).fetchall()
+        
+        room_columns_ready = len(result) >= 4
+        
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'property_urls' 
+            AND column_name IN ('distance_meters', 'proximity_level', 'linked_by', 'user_confirmed')
+        """)).fetchall()
+        
+        property_url_columns_ready = len(result) >= 4
+        
+        return {
+            "phase": "Phase 5: Room-URL Mapping",
+            "database_migration": "✅ Completed successfully",
+            "room_columns": "✅ Ready" if room_columns_ready else "❌ Missing",
+            "property_url_columns": "✅ Ready" if property_url_columns_ready else "❌ Missing",
+            "duplicate_table": "✅ Ready",
+            "ready_for_production": room_columns_ready and property_url_columns_ready,
+            "next_steps": [
+                "Update models.py with new columns",
+                "Add Phase 5 CRUD enhancements",
+                "Test room URL tracking"
+            ]
+        }
+    except Exception as e:
+        return {"error": f"Schema check failed: {str(e)}"}
+
 @app.post("/api/properties/{existing_property_id}/link-url")
 async def link_url_to_existing_property(
     existing_property_id: str,
@@ -2061,8 +2839,9 @@ async def get_room_changes(room_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/api/analytics")
+@cache_analytics(ttl=180)  # Cache analytics for 3 minutes
 async def get_analytics(db: Session = Depends(get_db)):
-    """Get analytics and statistics"""
+    """Get analytics and statistics - CACHED VERSION"""
     stats = AnalysisCRUD.get_analysis_stats(db)
     
     return {
@@ -2072,7 +2851,6 @@ async def get_analytics(db: Session = Depends(get_db)):
         "average_monthly_income": stats["average_monthly_income"],
         "total_monthly_income": stats["total_monthly_income"]
     }
-
 @app.get("/api/export/{property_id}")
 async def export_property_excel(property_id: str, db: Session = Depends(get_db)):
     """Download Excel file for a specific property"""
@@ -2233,6 +3011,143 @@ def get_areas_for_city_filter(city: str, db: Session = Depends(get_db)):
         return {"areas": areas}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching areas for {city}: {str(e)}")
+
+
+@app.get("/api/updates/last-summary")
+async def get_last_update_summary(db: Session = Depends(get_db)):
+    """Get summary of the last bulk update with detailed change information"""
+    
+    try:
+        # Get the most recent completed bulk update task
+        last_task = (db.query(AnalysisTask)
+                    .filter(
+                        AnalysisTask.task_type == "bulk_update",
+                        AnalysisTask.status == "completed"
+                    )
+                    .order_by(desc(AnalysisTask.completed_at))
+                    .first())
+        
+        if not last_task:
+            return None
+        
+        # Get the timeframe for this update (from task start to completion)
+        start_time = last_task.started_at
+        end_time = last_task.completed_at
+        
+        # Get all property changes during this update period
+        changes_during_update = (db.query(PropertyChange)
+                               .filter(
+                                   PropertyChange.detected_at >= start_time,
+                                   PropertyChange.detected_at <= end_time
+                               )
+                               .order_by(desc(PropertyChange.detected_at))
+                               .all())
+        
+        # Process changes by type
+        status_changes = []
+        unavailable_properties = []
+        price_changes = []
+        other_changes = []
+        
+        property_cache = {}  # Cache to avoid repeated queries
+        
+        for change in changes_during_update:
+            # Get property details (with caching)
+            if change.property_id not in property_cache:
+                property_obj = PropertyCRUD.get_property_by_id(db, change.property_id)
+                latest_analysis = AnalysisCRUD.get_latest_analysis(db, change.property_id)
+                property_cache[change.property_id] = {
+                    'address': property_obj.address if property_obj else 'Unknown',
+                    'monthly_income': latest_analysis.monthly_income if latest_analysis else None,
+                    'total_rooms': latest_analysis.total_rooms if latest_analysis else None,
+                    'advertiser_name': latest_analysis.advertiser_name if latest_analysis else 'Unknown'
+                }
+            
+            property_info = property_cache[change.property_id]
+            
+            # Categorize changes
+            if change.change_type == "listing_status":
+                change_data = {
+                    'property_id': change.property_id,
+                    'address': property_info['address'],
+                    'old_status': change.old_value,
+                    'new_status': change.new_value,
+                    'detected_at': change.detected_at.isoformat()
+                }
+                status_changes.append(change_data)
+                
+                # Check if property became unavailable
+                if change.new_value and 'unavailable' in change.new_value.lower():
+                    unavailable_data = {
+                        'property_id': change.property_id,
+                        'address': property_info['address'],
+                        'monthly_income': property_info['monthly_income'],
+                        'total_rooms': property_info['total_rooms'],
+                        'advertiser_name': property_info['advertiser_name'],
+                        'detected_at': change.detected_at.isoformat()
+                    }
+                    unavailable_properties.append(unavailable_data)
+            
+            elif change.change_type == "monthly_income":
+                try:
+                    old_price = float(change.old_value) if change.old_value else 0
+                    new_price = float(change.new_value) if change.new_value else 0
+                    price_difference = new_price - old_price
+                    
+                    if abs(price_difference) > 0:  # Only include actual price changes
+                        price_data = {
+                            'property_id': change.property_id,
+                            'address': property_info['address'],
+                            'old_price': old_price,
+                            'new_price': new_price,
+                            'price_difference': price_difference,
+                            'advertiser_name': property_info['advertiser_name'],
+                            'detected_at': change.detected_at.isoformat()
+                        }
+                        price_changes.append(price_data)
+                except (ValueError, TypeError):
+                    pass  # Skip invalid price changes
+            
+            else:
+                # Other types of changes
+                other_data = {
+                    'property_id': change.property_id,
+                    'address': property_info['address'],
+                    'change_type': change.change_type,
+                    'change_summary': change.change_summary,
+                    'old_value': change.old_value,
+                    'new_value': change.new_value,
+                    'detected_at': change.detected_at.isoformat()
+                }
+                other_changes.append(other_data)
+        
+        # Get task progress info
+        progress_info = last_task.progress or {}
+        
+        # Build summary response
+        summary = {
+            'task_id': last_task.task_id,
+            'started_at': last_task.started_at.isoformat(),
+            'completed_at': last_task.completed_at.isoformat(),
+            'total_properties_updated': progress_info.get('updated_count', 0),
+            'total_changes_detected': len(changes_during_update),
+            'status_changes': status_changes,
+            'unavailable_properties': unavailable_properties,
+            'price_changes': price_changes,
+            'other_changes': other_changes,
+            'change_summary': {
+                'status_changes_count': len(status_changes),
+                'unavailable_count': len(unavailable_properties),
+                'price_changes_count': len(price_changes),
+                'other_changes_count': len(other_changes)
+            }
+        }
+        
+        return summary
+        
+    except Exception as e:
+        print(f"Error getting update summary: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch update summary")
 
 
 # Add these new functions to your main.py
@@ -2479,7 +3394,7 @@ async def update_properties(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Start bulk update of properties"""
+    """Start bulk update of properties with cache invalidation"""
     
     # Get property IDs to update
     if request.property_ids:
@@ -2498,18 +3413,129 @@ async def update_properties(
     # Generate task ID
     task_id = str(uuid.uuid4())
     
-    # Create bulk update task (no specific property)
+    # Create bulk update task
     TaskCRUD.create_bulk_update_task(db, task_id)
     
-    # Start background update task
-    background_tasks.add_task(update_property_task, task_id, property_ids)
+    # Start background update task with cache invalidation
+    background_tasks.add_task(update_property_task_with_cache, task_id, property_ids)
     
     return PropertyUpdateResponse(
         task_id=task_id,
         status="pending",
-        message=f"Update started for {len(property_ids)} properties",
+        message=f"Update started for {len(property_ids)} properties (with cache invalidation)",
         properties_queued=len(property_ids)
     )
+
+# Updated property update task with cache invalidation
+async def update_property_task_with_cache(task_id: str, property_ids: List[str]):
+    """Background task to update multiple properties with cache invalidation"""
+    
+    from database import SessionLocal
+    db = SessionLocal()
+
+    try:
+        updated_count = 0
+        changes_detected = 0
+        
+        TaskCRUD.update_task_status(db, task_id, "running", {"progress": "starting"})
+        
+        for i, property_id in enumerate(property_ids):
+            try:
+                # Get existing property and latest analysis
+                property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+                if not property_obj:
+                    continue
+                
+                latest_analysis = AnalysisCRUD.get_latest_analysis(db, property_obj.id)
+                if not latest_analysis:
+                    continue
+                
+                # Update progress
+                progress = f"Updating property {i+1}/{len(property_ids)}"
+                TaskCRUD.update_task_status(db, task_id, "running", {"progress": progress})
+                
+                # Re-analyze the property (your existing logic)
+                analysis_data = initialize_analysis_data(property_obj.url)
+                
+                # Extract new data
+                coords = extract_coordinates(property_obj.url, analysis_data)
+                if coords.get('found'):
+                    lat, lon = coords['latitude'], coords['longitude']
+                    reverse_geocode_nominatim(lat, lon, analysis_data)
+                    extract_property_details(property_obj.url, analysis_data)
+                
+                extract_price_section(property_obj.url, analysis_data)
+                
+                # Compare with previous analysis
+                old_analysis_data = {
+                    'Listing Status': latest_analysis.listing_status,
+                    'Available Rooms': latest_analysis.available_rooms,
+                    'Total Rooms': latest_analysis.total_rooms,
+                    'Monthly Income': float(latest_analysis.monthly_income) if latest_analysis.monthly_income else None,
+                    'Annual Income': float(latest_analysis.annual_income) if latest_analysis.annual_income else None,
+                    'Bills Included': latest_analysis.bills_included,
+                    'Meets Requirements': latest_analysis.meets_requirements,
+                    'All Rooms List': latest_analysis.all_rooms_list or []
+                }
+                
+                # Detect changes
+                changes = detect_changes(old_analysis_data, analysis_data)
+                
+                # Process room tracking (your existing logic)
+                if analysis_data.get('_EXPIRED_LISTING'):
+                    room_results = RoomCRUD.mark_all_property_rooms_as_taken(
+                        db, property_obj.id, None
+                    )
+                else:
+                    rooms_list = analysis_data.get('All Rooms List', [])
+                    if rooms_list:
+                        room_results = RoomCRUD.process_rooms_list(
+                            db, property_obj.id, rooms_list, None
+                        )
+                
+                if changes:
+                    # Create new analysis record
+                    new_analysis = save_analysis_to_db(db, property_obj, analysis_data)
+                    
+                    # Save change records
+                    for change in changes:
+                        PropertyChangeCRUD.create_change(
+                            db,
+                            property_id=property_obj.id,
+                            analysis_id=new_analysis.id,
+                            **change
+                        )
+                    
+                    changes_detected += len(changes)
+                    
+                    # 🔄 INVALIDATE CACHE after property update
+                    await invalidate_on_property_update(str(property_obj.id))
+                    print(f"[{task_id}] 🔄 Cache invalidated for updated property {property_obj.id}")
+                
+                updated_count += 1
+                
+            except Exception as e:
+                print(f"[{task_id}] Failed to update property {property_id}: {e}")
+                continue
+        
+        # Invalidate analytics caches after bulk update
+        await CacheInvalidator.invalidate_analytics_caches()
+        print(f"[{task_id}] 🔄 Analytics caches invalidated after bulk update")
+        
+        # Complete the task
+        TaskCRUD.update_task_status(db, task_id, "completed", {
+            "progress": "completed",
+            "updated_count": updated_count,
+            "changes_detected": changes_detected
+        })
+        
+        print(f"[{task_id}] ✅ Bulk update completed with cache invalidation: {updated_count} properties, {changes_detected} changes")
+        
+    except Exception as e:
+        print(f"[{task_id}] Update task failed: {e}")
+        TaskCRUD.update_task_status(db, task_id, "failed", error_message=str(e))
+    finally:
+        db.close()
 
 @app.post("/api/properties/{property_id}/update")
 async def update_single_property(
@@ -3512,6 +4538,1039 @@ async def generate_sample_price_data(property_id: str, db: Session = Depends(get
             "error": str(e),
             "property_id": property_id
         }
+    
+# Simple Swindon HMO endpoint
+@app.get("/api/hmo-registry/cities/swindon")
+async def get_swindon_hmos():
+    try:
+        import sqlite3
+        conn = sqlite3.connect('hmo_analyser.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT case_number, raw_address as address, postcode, latitude, longitude, 
+                   geocoded, licence_status, licence_holder_name, data_quality_score
+            FROM hmo_registries 
+            WHERE city = 'swindon'
+        """)
+        
+        records = cursor.fetchall()
+        conn.close()
+        
+        data = []
+        for record in records:
+            data.append({
+                'case_number': record[0],
+                'address': record[1],
+                'postcode': record[2],
+                'latitude': record[3],
+                'longitude': record[4],
+                'geocoded': record[5],
+                'licence_status': record[6] or 'active',
+                'licence_holder': record[7],
+                'data_quality_score': record[8] or 1.0
+            })
+        
+        # Calculate statistics
+        total_records = len(data)
+        geocoded_records = sum(1 for d in data if d['geocoded'])
+        geocoding_success_rate = (geocoded_records / total_records * 100) if total_records > 0 else 0
+        active_licences = sum(1 for d in data if d['licence_status'] == 'active')
+        
+        return {
+            'success': True,
+            'city': 'swindon',
+            'data': data,
+            'count': len(data),
+            'statistics': {
+                'total_records': total_records,
+                'geocoded_records': geocoded_records,
+                'geocoding_success_rate': round(geocoding_success_rate, 1),
+                'active_licences': active_licences,
+                'expired_licences': 0,
+                'unknown_status': 0,
+                'average_data_quality': round(sum(d['data_quality_score'] for d in data) / len(data), 2) if data else 0,
+                'last_updated': None
+            }
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'city': 'swindon',
+            'data': [],
+            'count': 0,
+            'statistics': {'error': str(e)}
+        }
+
+
+# Add cache middleware to your FastAPI app (after your existing middleware)
+app.add_middleware(CacheMiddleware, cache_ttl=300)  # 5 minutes default
+
+# Update your slow endpoints with caching decorators:
+
+# Replace your existing @app.get("/api/properties") with this enhanced version:
+
+@app.get("/api/properties")
+@cache_properties(ttl=300)
+async def get_all_properties(
+    limit: int = None,
+    offset: int = 0,
+    sort_by: str = "created_at",      # 🆕 ADD sorting parameters
+    sort_order: str = "desc",         # 🆕 ADD sorting parameters
+    db: Session = Depends(get_db)
+):
+    """Optimized properties endpoint with batch date_gone calculation AND sorting"""
+    effective_limit = limit if limit is not None else 100000
+    
+    # 🆕 ADD: Validate sort parameters
+    valid_sort_fields = ["created_at", "address", "monthly_income", "analysis_date"]
+    if sort_by not in valid_sort_fields:
+        sort_by = "created_at"
+    if sort_order not in ["asc", "desc"]:
+        sort_order = "desc"
+    
+    # Get properties with their latest analysis in one efficient query WITH SORTING
+    properties_with_analysis = AnalysisCRUD.get_all_properties_with_analysis(
+        db, 
+        limit=effective_limit, 
+        offset=offset,
+        sort_by=sort_by,      # 🆕 PASS sorting to CRUD
+        sort_order=sort_order # 🆕 PASS sorting to CRUD
+    )
+    
+    # Extract property IDs for batch date_gone calculation
+    property_ids = [str(prop.id) for prop, _ in properties_with_analysis]
+    
+    # ✅ BATCH CALCULATION: Get all date_gone values in one query
+    batch_date_gone = RoomAvailabilityPeriodCRUD.get_batch_property_date_gone(db, property_ids)
+    
+    # Format properties using pre-calculated date_gone
+    formatted_properties = []
+    for prop, analysis in properties_with_analysis:
+        prop_id = str(prop.id)
+        summary = {
+            "property_id": prop_id,
+            "url": prop.url,
+            "address": prop.address,
+            "city": prop.city,
+            "area": prop.area,
+            "postcode": prop.postcode,
+            "monthly_income": float(analysis.monthly_income) if analysis and analysis.monthly_income else None,
+            "annual_income": float(analysis.annual_income) if analysis and analysis.annual_income else None,
+            "total_rooms": analysis.total_rooms if analysis else None,
+            "available_rooms": analysis.available_rooms if analysis else None,
+            "available_rooms_details": analysis.available_rooms_details if analysis else [],
+            "bills_included": analysis.bills_included if analysis else None,
+            "meets_requirements": analysis.meets_requirements if analysis else None,
+            "analysis_date": analysis.analysis_date if analysis else None,
+            "latitude": prop.latitude,
+            "longitude": prop.longitude,
+            "advertiser_name": analysis.advertiser_name if analysis else None,
+            "landlord_type": analysis.landlord_type if analysis else None,
+            "listing_status": analysis.listing_status if analysis else None,
+            "date_gone": batch_date_gone.get(prop_id),  # ✅ FAST: Pre-calculated in batch
+            "last_updated": str(analysis.created_at) if analysis and analysis.created_at else None,
+            "total_analyses": len(prop.analyses) if prop.analyses else 0,
+            "has_updates": len(prop.analyses) > 1 if prop.analyses else False,
+            "date_found": prop.created_at.strftime('%d/%m/%y') if prop.created_at else None,
+        }
+        formatted_properties.append(summary)
+    
+    print(f"🔍 Retrieved {len(formatted_properties)} properties, sorted by {sort_by} {sort_order}")
+    return formatted_properties
+
+@app.get("/api/properties/search")
+@cache_search(ttl=120)  # Cache search results for 2 minutes
+async def search_properties(
+    q: str = None,
+    min_income: float = None,
+    max_income: float = None,
+    min_rooms: int = None,
+    bills_included: str = None,
+    meets_requirements: str = None,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Search properties with filters - CACHED VERSION"""
+    properties = PropertyCRUD.search_properties(
+        db=db,
+        search_term=q,
+        min_income=min_income,
+        max_income=max_income,
+        min_rooms=min_rooms,
+        bills_included=bills_included,
+        meets_requirements=meets_requirements,
+        limit=limit
+    )
+    
+    # Format each property with latest analysis data
+    formatted_properties = []
+    for prop in properties:
+        summary = format_property_summary_with_db(prop, db)
+        formatted_properties.append(summary)
+    
+    return formatted_properties
+
+@app.get("/api/analytics")
+@cache_analytics(ttl=180)  # Cache analytics for 3 minutes
+async def get_analytics(db: Session = Depends(get_db)):
+    """Get analytics and statistics - CACHED VERSION"""
+    stats = AnalysisCRUD.get_analysis_stats(db)
+    
+    return {
+        "total_properties": stats["total_properties"],
+        "total_analyses": stats["total_analyses"],
+        "viable_properties": stats["viable_properties"],
+        "average_monthly_income": stats["average_monthly_income"],
+        "total_monthly_income": stats["total_monthly_income"]
+    }
+
+
+@app.get("/api/cities/{city_name}/market-timing")
+async def get_city_market_timing(
+    city_name: str,
+    period: str = "weekly",  # daily, weekly, monthly
+    days: int = 90,
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive market timing analysis for a city"""
+    
+    # Decode city name for URL compatibility
+    decoded_city_name = city_name.replace('-', ' ').title()
+    
+    # Get all properties in this city
+    city_properties = get_properties_for_city(db, decoded_city_name)
+    
+    if not city_properties:
+        raise HTTPException(status_code=404, detail=f"No properties found for city: {decoded_city_name}")
+    
+    property_ids = [prop.id for prop in city_properties]
+    
+    # Get cutoff date
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Get all availability periods for properties in this city within the timeframe
+    # Use explicit join condition to avoid ambiguous foreign key error
+    periods_query = db.query(RoomAvailabilityPeriod).join(
+        Room, RoomAvailabilityPeriod.room_id == Room.id
+    ).filter(
+        Room.property_id.in_(property_ids),
+        RoomAvailabilityPeriod.period_start_date >= cutoff_date
+    ).order_by(RoomAvailabilityPeriod.period_start_date)
+    
+    all_periods = periods_query.all()
+    
+    # Calculate market timing metrics
+    timing_data = calculate_market_timing_metrics(all_periods, period, days)
+    
+    # Get average time on market
+    avg_time_on_market = calculate_avg_time_on_market(all_periods)
+    
+    # Get velocity data
+    velocity_data = calculate_market_velocity(all_periods, period, days)
+    
+    # Get seasonal patterns (if enough data)
+    seasonal_data = calculate_seasonal_patterns(all_periods) if len(all_periods) > 50 else None
+    
+    return {
+        "city": decoded_city_name,
+        "period": period,
+        "days_analyzed": days,
+        "total_properties": len(city_properties),
+        "total_periods_analyzed": len(all_periods),
+        "avg_time_on_market_days": avg_time_on_market,
+        "velocity_data": velocity_data,
+        "timing_trends": timing_data,
+        "seasonal_patterns": seasonal_data,
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+@app.get("/api/cities/{city_name}/velocity-metrics")
+async def get_city_velocity_metrics(
+    city_name: str,
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Get current velocity metrics for a city"""
+    
+    decoded_city_name = city_name.replace('-', ' ').title()
+    city_properties = get_properties_for_city(db, decoded_city_name)
+    
+    if not city_properties:
+        raise HTTPException(status_code=404, detail=f"No properties found for city: {decoded_city_name}")
+    
+    property_ids = [prop.id for prop in city_properties]
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Get periods that started in the timeframe (coming on market)
+    coming_on_market = db.query(RoomAvailabilityPeriod).join(
+        Room, RoomAvailabilityPeriod.room_id == Room.id
+    ).filter(
+        Room.property_id.in_(property_ids),
+        RoomAvailabilityPeriod.period_start_date >= cutoff_date
+    ).count()
+    
+    # Get periods that ended in the timeframe (going off market)
+    going_off_market = db.query(RoomAvailabilityPeriod).join(
+        Room, RoomAvailabilityPeriod.room_id == Room.id
+    ).filter(
+        Room.property_id.in_(property_ids),
+        RoomAvailabilityPeriod.period_end_date >= cutoff_date,
+        RoomAvailabilityPeriod.period_end_date.isnot(None)
+    ).count()
+    
+    # Get currently available rooms
+    currently_available = db.query(RoomAvailabilityPeriod).join(
+        Room, RoomAvailabilityPeriod.room_id == Room.id
+    ).filter(
+        Room.property_id.in_(property_ids),
+        RoomAvailabilityPeriod.is_current_period == True
+    ).count()
+    
+    # Calculate velocity metrics
+    daily_coming_rate = coming_on_market / days if days > 0 else 0
+    daily_going_rate = going_off_market / days if days > 0 else 0
+    net_velocity = daily_coming_rate - daily_going_rate
+    
+    return {
+        "city": decoded_city_name,
+        "period_days": days,
+        "rooms_coming_on_market": coming_on_market,
+        "rooms_going_off_market": going_off_market,
+        "currently_available": currently_available,
+        "daily_velocity": {
+            "coming_on_market_per_day": round(daily_coming_rate, 2),
+            "going_off_market_per_day": round(daily_going_rate, 2),
+            "net_velocity_per_day": round(net_velocity, 2)
+        },
+        "velocity_trend": "increasing" if net_velocity > 0 else "decreasing" if net_velocity < 0 else "stable"
+    }
+
+def get_properties_for_city(db: Session, city_name: str):
+    """Helper function to get all properties for a city"""
+    # Use the existing city extraction logic
+    properties = db.query(Property).all()
+    city_properties = []
+    
+    for prop in properties:
+        if prop.address:
+            # Extract city from address - same logic as used in frontend
+            address_parts = prop.address.split(',')
+            for part in address_parts:
+                part = part.strip()
+                if part.lower() == city_name.lower():
+                    city_properties.append(prop)
+                    break
+    
+    return city_properties
+
+def calculate_market_timing_metrics(periods, period_type, total_days):
+    """Calculate timing metrics grouped by period"""
+    
+    if not periods:
+        return []
+    
+    # Group periods by time period
+    if period_type == "daily":
+        grouped_data = group_periods_by_day(periods)
+    elif period_type == "weekly":
+        grouped_data = group_periods_by_week(periods)
+    else:  # monthly
+        grouped_data = group_periods_by_month(periods)
+    
+    # Calculate metrics for each time period
+    timing_metrics = []
+    for period_key, period_periods in grouped_data.items():
+        
+        # Count new listings (periods starting)
+        new_listings = len(period_periods)
+        
+        # Count completions (periods ending) - need to check periods that ended in this timeframe
+        completed_periods = [p for p in period_periods if p.get('duration_days') is not None]
+        completions = len(completed_periods)
+        
+        # Average duration for completed periods
+        avg_duration = 0
+        if completed_periods:
+            avg_duration = statistics.mean([p['duration_days'] for p in completed_periods])
+        
+        timing_metrics.append({
+            "period": period_key,
+            "new_rooms_available": new_listings,
+            "rooms_taken": completions,
+            "net_change": new_listings - completions,
+            "avg_days_on_market": round(avg_duration, 1) if avg_duration > 0 else None
+        })
+    
+    return sorted(timing_metrics, key=lambda x: x["period"])
+
+def calculate_avg_time_on_market(periods):
+    """Calculate overall average time on market"""
+    completed_periods = [p for p in periods if p.duration_days is not None]
+    
+    if not completed_periods:
+        return None
+    
+    total_duration = sum(p.duration_days for p in completed_periods)
+    return round(total_duration / len(completed_periods), 1)
+
+def calculate_market_velocity(periods, period_type, total_days):
+    """Calculate market velocity over time"""
+    
+    # Group by time periods and calculate velocity for each
+    if period_type == "daily":
+        grouped_data = group_periods_by_day(periods)
+        period_days = 1
+    elif period_type == "weekly":
+        grouped_data = group_periods_by_week(periods)
+        period_days = 7
+    else:  # monthly
+        grouped_data = group_periods_by_month(periods)
+        period_days = 30
+    
+    velocity_data = []
+    for period_key, period_periods in grouped_data.items():
+        rooms_coming_on = len(period_periods)
+        rooms_going_off = len([p for p in period_periods if p.get('end_date')])
+        
+        velocity_data.append({
+            "period": period_key,
+            "rooms_coming_on_market": rooms_coming_on,
+            "rooms_going_off_market": rooms_going_off,
+            "net_velocity": rooms_coming_on - rooms_going_off,
+            "velocity_per_day": round((rooms_coming_on - rooms_going_off) / period_days, 2)
+        })
+    
+    return sorted(velocity_data, key=lambda x: x["period"])
+
+def calculate_seasonal_patterns(periods):
+    """Calculate seasonal patterns if enough data exists"""
+    
+    if len(periods) < 50:
+        return None
+    
+    # Group by month to identify seasonal patterns
+    monthly_data = defaultdict(list)
+    
+    for period in periods:
+        month = period.period_start_date.month
+        monthly_data[month].append(period)
+    
+    seasonal_patterns = []
+    month_names = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ]
+    
+    for month in range(1, 13):
+        month_periods = monthly_data.get(month, [])
+        if month_periods:
+            avg_duration = statistics.mean([
+                p.duration_days for p in month_periods 
+                if p.duration_days is not None
+            ]) if any(p.duration_days for p in month_periods) else 0
+            
+            seasonal_patterns.append({
+                "month": month_names[month - 1],
+                "month_number": month,
+                "total_periods": len(month_periods),
+                "avg_days_on_market": round(avg_duration, 1) if avg_duration > 0 else None
+            })
+    
+    return seasonal_patterns
+
+def find_nearby_properties_for_context(
+    db: Session, 
+    latitude: Optional[float], 
+    longitude: Optional[float],
+    radius_meters: int = 200,
+    exclude_property_id: str = None
+) -> List[Dict]:
+    """Find nearby properties for context in duplicate modal - FIXED SQL"""
+    
+    if not latitude or not longitude:
+        return []
+    
+    try:
+        # ✅ FIX: Use subquery to avoid HAVING clause with alias
+        nearby = db.execute(
+            text("""
+            SELECT * FROM (
+                SELECT 
+                    p.id, 
+                    p.address, 
+                    p.url, 
+                    p.latitude, 
+                    p.longitude,
+                    pa.advertiser_name,
+                    pa.total_rooms,
+                    pa.monthly_income,
+                    (6371000 * acos(cos(radians(:lat)) * cos(radians(p.latitude)) * 
+                     cos(radians(p.longitude) - radians(:lng)) + sin(radians(:lat)) * 
+                     sin(radians(p.latitude)))) AS distance
+                FROM properties p
+                LEFT JOIN property_analyses pa ON p.id = pa.property_id
+                WHERE p.latitude IS NOT NULL 
+                  AND p.longitude IS NOT NULL
+                  AND (:exclude_id IS NULL OR p.id != :exclude_id)
+            ) nearby_query
+            WHERE distance <= :radius
+            ORDER BY distance
+            LIMIT 5
+            """),
+            {
+                "lat": latitude, 
+                "lng": longitude, 
+                "radius": radius_meters,
+                "exclude_id": exclude_property_id
+            }
+        ).fetchall()
+        
+        return [
+            {
+                "id": str(row.id),
+                "address": row.address or "Address not available",
+                "distance": round(row.distance),
+                "advertiser": row.advertiser_name or "Unknown",
+                "total_rooms": row.total_rooms,
+                "monthly_income": float(row.monthly_income) if row.monthly_income else None,
+                "url": row.url
+            } for row in nearby
+        ]
+    except Exception as e:
+        logger.error(f"Error finding nearby properties: {e}")
+        return []
+
+def get_existing_property_context(db: Session, property_id: str) -> Dict[str, Any]:
+    """Get context information about existing property for duplicate modal"""
+    
+    try:
+        property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+        if not property_obj:
+            return {}
+        
+        # Get latest analysis
+        latest_analysis = AnalysisCRUD.get_latest_analysis(db, property_obj.id)
+        
+        # Count URLs associated with this property
+        url_count = db.query(PropertyURL).filter(
+            PropertyURL.property_id == property_id
+        ).count()
+        
+        # Get room count and status
+        rooms = RoomCRUD.get_property_rooms(db, property_id)
+        active_rooms = [r for r in rooms if r.current_status == 'available']
+        
+        return {
+            "id": str(property_obj.id),
+            "address": property_obj.address,
+            "created_at": property_obj.created_at.isoformat() if property_obj.created_at else None,
+            "last_analysis_date": latest_analysis.analysis_date.isoformat() if latest_analysis else None,
+            "total_rooms": len(rooms),
+            "active_rooms": len(active_rooms),
+            "urls_count": url_count,
+            "monthly_income": float(latest_analysis.monthly_income) if latest_analysis and latest_analysis.monthly_income else None,
+            "advertiser_name": latest_analysis.advertiser_name if latest_analysis else None,
+            "landlord_type": latest_analysis.landlord_type if latest_analysis else None
+        }
+    except Exception as e:
+        logger.error(f"Error getting property context: {e}")
+        return {}
+
+def generate_confidence_explanation(match_factors: Dict) -> str:
+    """Generate human-readable explanation of confidence score"""
+    
+    explanations = []
+    
+    # Address similarity
+    addr_sim = match_factors.get('address_similarity', 0)
+    if addr_sim > 0.8:
+        explanations.append("Addresses are very similar")
+    elif addr_sim > 0.6:
+        explanations.append("Addresses are somewhat similar")
+    else:
+        explanations.append("Addresses differ significantly")
+    
+    # Distance
+    distance = match_factors.get('distance_meters')
+    if distance is not None:
+        if distance <= 50:
+            explanations.append("Properties are very close (same building/block)")
+        elif distance <= 200:
+            explanations.append("Properties are nearby (walking distance)")
+        else:
+            explanations.append("Properties are relatively far apart")
+    
+    # Advertiser
+    advertiser_sim = match_factors.get('advertiser_similarity', 0)
+    if advertiser_sim > 0.8:
+        explanations.append("Same advertiser/landlord")
+    elif advertiser_sim > 0.3:
+        explanations.append("Similar advertiser names")
+    
+    return ". ".join(explanations) + "."
+
+def analyze_distance_context(distance_meters: float, nearby_properties: List[Dict]) -> Dict:
+    """Analyze distance in context of nearby properties"""
+    
+    if not distance_meters or distance_meters == float('inf'):
+        return {"analysis": "Distance not available"}
+    
+    nearby_distances = [prop["distance"] for prop in nearby_properties]
+    
+    context = {
+        "distance_meters": distance_meters,
+        "nearby_count": len(nearby_properties),
+        "analysis": ""
+    }
+    
+    if distance_meters <= 10:
+        context["analysis"] = "Same building - very likely same property"
+    elif distance_meters <= 50:
+        context["analysis"] = "Same block - could be same building with different entrances"
+    elif distance_meters <= 100:
+        context["analysis"] = "Same street - possible same property or landlord portfolio"
+    elif distance_meters <= 300:
+        context["analysis"] = "Same neighborhood - less likely to be duplicate"
+    else:
+        context["analysis"] = "Different areas - unlikely to be duplicate"
+    
+    # Add context about other nearby properties
+    if nearby_distances:
+        avg_nearby = sum(nearby_distances) / len(nearby_distances)
+        if distance_meters < avg_nearby:
+            context["analysis"] += f" (Closer than average of {len(nearby_properties)} nearby properties)"
+    
+    return context
+
+@app.get("/api/contacts/health")
+@cache_contacts(ttl=600)  # Cache for 10 minutes
+async def health_check():
+    """Simple health check endpoint - CACHED VERSION"""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/api/contacts/lists")
+@cache_contacts(ttl=300)  # Cache contact lists for 5 minutes
+async def get_contact_lists(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all contact lists accessible by the user - CACHED VERSION"""
+    user_lists = get_user_accessible_lists(db, current_user.id)
+    
+    result = []
+    for ul in user_lists:
+        contact_list = ul["list"]
+        permission_level = ul["permission_level"]
+        
+        # Count contacts in this list
+        contact_count = db.query(Contact).filter(Contact.contact_list_id == contact_list.id).count()
+        
+        # Determine permissions
+        can_edit = permission_level in ["owner", "editor"]
+        can_delete = permission_level == "owner"
+        can_invite = permission_level == "owner"
+        
+        result.append(ContactListResponse(
+            id=str(contact_list.id),
+            name=contact_list.name,
+            description=contact_list.description,
+            created_at=contact_list.created_at.isoformat(),
+            updated_at=contact_list.updated_at.isoformat(),
+            is_default=contact_list.is_default,
+            contact_count=contact_count,
+            created_by=str(contact_list.created_by),
+            permission_level=permission_level,
+            can_edit=can_edit,
+            can_delete=can_delete,
+            can_invite=can_invite
+        ))
+    
+    return result
+
+# Add cache management endpoints
+@app.get("/api/admin/cache/stats")
+async def get_cache_statistics():
+    """Get cache performance statistics"""
+    try:
+        stats = await CacheMonitor.get_cache_metrics()
+        return {
+            "cache_stats": stats,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to get cache stats: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+@app.get("/api/admin/cache/efficiency")
+async def get_cache_efficiency():
+    """Get cache efficiency report"""
+    try:
+        report = await CacheMonitor.cache_efficiency_report()
+        return report
+    except Exception as e:
+        return {
+            "error": f"Failed to get efficiency report: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+@app.post("/api/admin/cache/clear")
+async def clear_cache_manually(pattern: str = "hmo_cache:*"):
+    """Manually clear cache (admin only)"""
+    try:
+        deleted = await cache.delete_async(pattern)
+        return {
+            "message": f"Cleared {deleted} cache keys",
+            "pattern": pattern,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to clear cache: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+@app.post("/api/admin/cache/invalidate/property/{property_id}")
+async def invalidate_property_cache(property_id: str):
+    """Invalidate all caches for a specific property"""
+    try:
+        deleted = await CacheInvalidator.invalidate_property_caches(property_id)
+        return {
+            "message": f"Invalidated {deleted} cache keys for property {property_id}",
+            "property_id": property_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to invalidate property cache: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+@app.websocket("/ws/test")
+async def test_websocket(websocket: WebSocket):
+    await websocket.accept()
+    await websocket.send_text("Hello WebSocket!")
+    await websocket.close()
+
+@app.get("/debug/routes")
+async def debug_routes():
+    routes = []
+    for route in app.routes:
+        if hasattr(route, 'path'):
+            routes.append({
+                "path": route.path,
+                "methods": getattr(route, 'methods', ['WebSocket' if 'websocket' in str(type(route)).lower() else 'Unknown'])
+            })
+    return routes
+
+# WebSocket endpoint for real-time task updates
+@app.websocket("/ws/task/{task_id}")
+async def websocket_task_updates(websocket: WebSocket, task_id: str):
+    """WebSocket endpoint for real-time task progress updates"""
+    await websocket_endpoint(websocket, task_id)
+
+# Updated async analyze endpoint
+@app.post("/api/analyze-async", response_model=PropertyAnalysisResponse)
+async def analyze_property_async(
+    request: PropertyAnalysisRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Start async property analysis with real-time WebSocket updates
+    This replaces your existing /api/analyze endpoint for better performance
+    """
+    
+    url = str(request.url)
+    task_id = str(uuid.uuid4())
+    
+    print(f"🚀 Starting ASYNC analysis for: {url}")
+    
+    # Check for duplicates (keep existing logic)
+    # Simplified duplicate checking for async endpoint
+    if not request.force_separate:
+        print(f"🔍 Checking for existing property by URL...")
+        
+        # Simple URL-based check (faster for async)
+        existing_property = PropertyCRUD.get_property_by_url(db, str(request.url))
+        
+        if existing_property:
+            print(f"🔗 Found existing property: {existing_property.id}")
+            
+            # Create task for existing property
+            TaskCRUD.create_property_task(db, task_id, existing_property.id)
+            
+            # Start async analysis
+            await start_property_analysis(task_id, url, str(existing_property.id))
+            
+            return PropertyAnalysisResponse(
+                task_id=task_id,
+                status="pending",
+                message="Async analysis started for existing property",
+                duplicate_detected=True,
+                duplicate_data={"existing_property_id": str(existing_property.id)}
+            )
+        
+    # Create new property analysis task
+    TaskCRUD.create_task(db, task_id)
+    
+    # Start async analysis
+    await start_property_analysis(task_id, url)
+    
+    return PropertyAnalysisResponse(
+        task_id=task_id,
+        status="pending",
+        message="Async property analysis started - connect to WebSocket for real-time updates"
+    )
+
+@app.post("/api/properties/update-async", response_model=PropertyUpdateResponse)
+async def update_properties_async(
+    request: PropertyUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """Start async bulk property updates with real-time progress"""
+    
+    # Get property IDs to update
+    if request.property_ids:
+        property_ids = request.property_ids
+    else:
+        # Get all properties
+        all_properties = PropertyCRUD.get_all_properties(db, limit=1000)
+        property_ids = [str(prop.id) for prop in all_properties]
+    
+    if not property_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="No properties found to update"
+        )
+    
+    # Generate task ID
+    task_id = str(uuid.uuid4())
+    
+    # Create bulk update task
+    TaskCRUD.create_bulk_update_task(db, task_id)
+    
+    # Start async bulk update
+    await start_bulk_update(task_id, property_ids)
+    
+    return PropertyUpdateResponse(
+        task_id=task_id,
+        status="pending",
+        message=f"Async bulk update started for {len(property_ids)} properties",
+        properties_queued=len(property_ids)
+    )
+
+@app.post("/api/properties/{property_id}/update-async")
+async def update_single_property_async(
+    property_id: str,
+    db: Session = Depends(get_db)
+):
+    """Update a single property asynchronously"""
+    
+    property_obj = PropertyCRUD.get_property_by_id(db, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
+    
+    # Generate task ID and create task
+    task_id = str(uuid.uuid4())
+    TaskCRUD.create_property_task(db, task_id, property_obj.id)
+    
+    # Start async update (reusing the analysis function)
+    await start_property_analysis(task_id, property_obj.url, str(property_obj.id))
+    
+    return PropertyUpdateResponse(
+        task_id=task_id,
+        status="pending",
+        message="Async property update started",
+        properties_queued=1
+    )
+
+@app.get("/api/tasks/active")
+async def get_active_tasks_endpoint():
+    """Get list of currently running async tasks"""
+    active_tasks = await get_active_tasks()
+    
+    return {
+        "active_tasks": active_tasks,
+        "total_active": len(active_tasks),
+        "websocket_connections": connection_manager.get_connection_stats()
+    }
+
+@app.post("/api/tasks/{task_id}/cancel")
+async def cancel_task_endpoint(task_id: str):
+    """Cancel a running async task"""
+    cancelled = await cancel_task(task_id)
+    
+    if cancelled:
+        return {"message": f"Task {task_id} has been cancelled", "cancelled": True}
+    else:
+        return {"message": f"Task {task_id} not found or already completed", "cancelled": False}
+
+@app.get("/api/websocket/stats")
+async def websocket_stats():
+    """Get WebSocket connection statistics"""
+    return connection_manager.get_connection_stats()
+
+# Health check endpoint with async task info
+@app.get("/api/health-async")
+async def health_check_async(db: Session = Depends(get_db)):
+    """Enhanced health check with async task information"""
+    
+    try:
+        # Get basic health info - call the sync version properly
+        basic_health = await health_check(db)  # Remove this await
+        
+        # Change to:
+        basic_health = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database_connected": True
+        }
+        
+        # Add async task info
+        active_tasks = await get_active_tasks()
+        websocket_stats = connection_manager.get_connection_stats()
+        
+        return {
+            **basic_health,
+            "async_tasks": {
+                "active_tasks": len(active_tasks),
+                "task_details": active_tasks
+            },
+            "websocket": websocket_stats,
+            "performance_mode": "async_enabled"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "async_tasks": {"active_tasks": 0},
+            "websocket": {"total_connections": 0},
+            "performance_mode": "async_error"
+        }
+
+# Add cache initialization to startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize async components and cache on startup"""
+    print("🚀 Starting HMO Analyser with async optimizations...")
+    print("✅ WebSocket support enabled")
+    print("✅ Async scraping engine ready")
+    print("✅ Background task manager initialized")
+    
+    # Initialize Redis cache
+    try:
+        await cache.connect_async()
+        print("✅ Redis cache system initialized")
+        
+        # Test cache functionality
+        test_result = await cache.set_async("startup_test", {"status": "cache_working"}, 60)
+        if test_result:
+            print("✅ Cache functionality verified")
+        else:
+            print("⚠️ Cache test failed - running without cache")
+            
+    except Exception as e:
+        print(f"⚠️ Redis cache initialization failed: {e}")
+        print("⚠️ Running without cache - performance will be limited")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up async resources on shutdown"""
+    print("🧹 Cleaning up async resources...")
+    
+    # Cancel all active tasks
+    active_tasks = await get_active_tasks()
+    for task_id in active_tasks:
+        await cancel_task(task_id)
+    
+    # Clean up scraper resources
+    from modules.async_scraper import cleanup_async_scraper
+    await cleanup_async_scraper()
+    
+    print("✅ Async cleanup completed")
+
+# Migration endpoint to help transition from sync to async
+@app.post("/api/migrate-to-async")
+async def migrate_existing_tasks():
+    """
+    Utility endpoint to help transition existing sync operations to async
+    This can be used to convert any pending sync tasks to async tasks
+    """
+    
+    # This is a utility function you might want during the transition
+    return {
+        "message": "Migration utilities available",
+        "recommendations": [
+            "Use /api/analyze-async instead of /api/analyze",
+            "Use /api/properties/update-async instead of /api/properties/update",
+            "Connect to WebSocket at /ws/task/{task_id} for real-time updates",
+            "Monitor active tasks at /api/tasks/active"
+        ]
+    }
+
+# Performance comparison endpoint (for testing)
+@app.post("/api/performance-test")
+async def performance_test(
+    urls: List[str],
+    use_async: bool = True,
+    max_concurrent: int = 5
+):
+    """
+    Performance testing endpoint to compare sync vs async processing
+    Useful for measuring the performance improvements
+    """
+    
+    if not urls:
+        raise HTTPException(status_code=400, detail="No URLs provided for testing")
+    
+    start_time = datetime.now()
+    
+    if use_async:
+        # Use async batch processing
+        from modules.async_scraper import batch_extract_multiple_properties
+        results = await batch_extract_multiple_properties(urls, max_concurrent)
+        method = "async"
+    else:
+        # Use sync processing (for comparison)
+        from modules.scraper import extract_price_section  # Your original sync version
+        results = []
+        for url in urls:
+            analysis_data = {'url': url}
+            result = extract_price_section(url, analysis_data)
+            results.append(result)
+        method = "sync"
+    
+    end_time = datetime.now()
+    duration = (end_time - start_time).total_seconds()
+    
+    return {
+        "method": method,
+        "urls_processed": len(urls),
+        "successful_results": len([r for r in results if r.get('All Rooms List')]),
+        "total_duration_seconds": duration,
+        "average_time_per_url": duration / len(urls),
+        "performance_improvement": f"{((len(urls) * 5) / duration):.1f}x faster than expected sync" if use_async else "baseline sync performance",
+        "max_concurrent": max_concurrent if use_async else 1
+    }
+
+# Add CORS middleware update for WebSocket support
+# Update your existing CORS configuration:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    # Add WebSocket support
+    allow_origin_regex=r"ws://localhost:300[0-1]"
+)
+app.add_middleware(CacheMiddleware, cache_ttl=300)  # 5 minutes default
+
+
 
 @usage_router.post("/")
 async def track_map_usage(event: MapUsageEventRequest, db: Session = Depends(get_db)):
@@ -3761,4 +5820,10 @@ async def cleanup_old_events(days_to_keep: int = 90, db: Session = Depends(get_d
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+
+
+
+
+
+

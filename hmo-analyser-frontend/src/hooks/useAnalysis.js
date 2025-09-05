@@ -1,5 +1,6 @@
 // useAnalysis.js - React Query hooks for HMO Analyser with Phase 1 functionality
 
+import React, { useState, useEffect } from 'react'; // Add this import
 import { useQuery } from '@tanstack/react-query';
 
 // Phase 1: Availability data hooks
@@ -85,7 +86,7 @@ export const usePropertyChanges = (propertyId, limit = 50) => {
       }
       return response.json();
     },
-    enabled: !!propertyId
+    enabled: !!propertyId // Fixed this line - it had a syntax error
   });
 };
 
@@ -149,4 +150,22 @@ export const usePropertyAnalytics = (propertyId) => {
   }, [propertyId]);
   
   return { data, isLoading };
+};
+
+export const useLastUpdateSummary = () => {
+  return useQuery({
+    queryKey: ['last-update-summary'],
+    queryFn: async () => {
+      const response = await fetch('/api/updates/last-summary');
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null; // No updates found
+        }
+        throw new Error('Failed to fetch update summary');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1
+  });
 };

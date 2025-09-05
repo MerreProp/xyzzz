@@ -281,6 +281,66 @@ def get_location_from_uk_postcode(postcode, analysis_data):
         print(f"❌ Error looking up postcode: {e}")
         return None
 
+def geocode_address(address):
+    """
+    Geocode a plain address string using Nominatim API
+    This is separate from extract_coordinates which is for SpareRoom URLs
+    
+    Args:
+        address (str): Plain address string to geocode
+    
+    Returns:
+        tuple: (latitude, longitude) or None if geocoding fails
+    """
+    import requests
+    import urllib.parse
+    import time
+    
+    if not address or not address.strip():
+        return None
+    
+    try:
+        # Clean and prepare address for geocoding
+        clean_address = address.strip()
+        
+        # Add UK to address if not already present
+        if 'UK' not in clean_address.upper() and 'UNITED KINGDOM' not in clean_address.upper():
+            clean_address += ', UK'
+        
+        # URL encode the address for the API request
+        encoded_address = urllib.parse.quote(clean_address)
+        
+        # Build proper Nominatim URL
+        nominatim_url = f"https://nominatim.openstreetmap.org/search?q={encoded_address}&format=json&limit=1&countrycodes=gb"
+        
+        # Make the API request with proper headers
+        headers = {
+            'User-Agent': 'HMO-Analyser/1.0 (Property Analysis Tool)'
+        }
+        
+        # Add a small delay to be respectful to the API
+        time.sleep(0.1)
+        
+        response = requests.get(nominatim_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data and len(data) > 0:
+            result = data[0]
+            lat = float(result['lat'])
+            lon = float(result['lon'])
+            
+            print(f"✅ Geocoded '{address}' -> {lat}, {lon}")
+            return (lat, lon)
+        else:
+            print(f"❌ No coordinates found for: {clean_address}")
+            return None
+        
+    except Exception as e:
+        print(f"🔍 Geocoding failed for '{address}': {e}")
+        return None
+
 
 # ======================================
 # ENHANCED COORDINATE EXTRACTION
@@ -402,6 +462,37 @@ def extract_coordinates(url, analysis_data):
         print(f"❌ Error: {e}")
         traceback.print_exc()
         return {'found': False, 'error': str(e)}
+    
+
+def extract_postcode_from_address(address):
+    """
+    Extract UK postcode from address string using regex
+    
+    Args:
+        address (str): Address string containing postcode
+    
+    Returns:
+        str: Extracted postcode or None if not found
+    """
+    if not address:
+        return None
+    
+    # UK postcode regex pattern - matches various formats
+    postcode_patterns = [
+        r'\b([A-Z]{1,2}[0-9R][0-9A-Z]? ?[0-9][A-Z]{2})\b',  # Standard format
+        r'\b([A-Z]{1,2}[0-9]{1,2} ?[0-9][A-Z]{2})\b',       # Alternative format
+    ]
+    
+    for pattern in postcode_patterns:
+        match = re.search(pattern, address.upper())
+        if match:
+            postcode = match.group(1).strip()
+            # Format postcode with space if needed
+            if len(postcode) > 3 and ' ' not in postcode:
+                postcode = postcode[:-3] + ' ' + postcode[-3:]
+            return postcode
+    
+    return None
 
 
 # ======================================
